@@ -270,6 +270,7 @@ function parseText(text) {
 
 function processRows(rows) {
   var hotels = [], stops = [];
+  var skipped = 0; // 유효하지 않은 좌표 카운트
   rows.forEach(function(r, i){
     // 모든 셀을 문자열로 변환 (숫자/날짜 처리)
     r = r.map(function(c){ return c == null ? '' : String(c); });
@@ -286,7 +287,9 @@ function processRows(rows) {
       no: '',
       cancelled: false
     };
-    if (!item.name || isNaN(item.lat) || isNaN(item.lng)) return;
+    if (!item.name || isNaN(item.lat) || isNaN(item.lng)) { skipped++; return; }
+    // 좌표 유효성 검증: 위도 -90~90, 경도 -180~180 벗어나면 스킵
+    if (Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) { skipped++; return; }
     
     if (type === 'stop') {
       item.no = (i+1) + '';
@@ -301,8 +304,10 @@ function processRows(rows) {
   });
   
   parsedData = { hotels: hotels, stops: stops };
-  document.getElementById('buildBtn').disabled = false;
-  showStatus('ok', '✅ 파싱 완료! 숙소 ' + hotels.length + '개, 경유지 ' + stops.length + '개');
+  var msg = '✅ 파싱 완료! 숙소 ' + hotels.length + '개, 경유지 ' + stops.length + '개';
+  if (skipped > 0) msg += '\n⚠️ 유효하지 않은 좌표 ' + skipped + '개 제외됨 (위도/경도가 범위를 벗어났습니다)';
+  showStatus('ok', msg);
+  document.getElementById('buildBtn').disabled = (hotels.length === 0);
 }
 
 function autoColor(i) {
@@ -618,6 +623,7 @@ ${text}`;
         cancelled: p.cancelled || false
       };
       if (!item.name || isNaN(item.lat) || isNaN(item.lng)) return;
+      if (Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) return;
       if (p.type === 'stop') {
         item.no = (stops.length + 1) + '';
         item.emoji = p.emoji || '📍';
