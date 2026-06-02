@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.5</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.6</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -334,7 +334,7 @@ function renderMapInContainer() {
   if (!document.getElementById('mapsScript')) {
     var script = document.createElement('script');
     script.id = 'mapsScript';
-    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&libraries=marker,geometry&loading=async&callback=onMapsLoaded&language=ko';
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&libraries=marker,geometry&callback=onMapsLoaded&language=ko';
     script.async = true;
     script.defer = true;
     document.head.appendChild(script);
@@ -343,7 +343,8 @@ function renderMapInContainer() {
   }
   
   window._travelMapCfg = {
-    hotels: h, stops: s, title: title, subtitle: subtitle,
+    hotels: h.filter(function(x){ return !x.cancelled; }),
+    stops: s.filter(function(x){ return !x.cancelled; }), title: title, subtitle: subtitle,
     center: {lat: cx, lng: cy}, zoom: zoom, mapId: mapId
   };
 }
@@ -369,6 +370,7 @@ function onMapsLoaded() {
   // 호텔 마커 - 겹침 방지를 위해 근접 마커 오프셋
   var usedCoords = [];
   cfg.hotels.forEach(function(h, i){
+    if (h.cancelled) return; // 취소된 숙소는 건너뛰기
     var lat = h.lat, lng = h.lng;
     // 이미 같은 위치에 마커가 있으면 살짝 이동
     for (var k = 0; k < usedCoords.length; k++) {
@@ -436,6 +438,11 @@ function onMapsLoaded() {
   cfg.hotels.forEach(function(h){ bounds.extend(new google.maps.LatLng(h.lat, h.lng)); });
   cfg.stops.forEach(function(p){ bounds.extend(new google.maps.LatLng(p.lat, p.lng)); });
   gMap.fitBounds(bounds, 80);
+  
+  // PC에서 맵 타일 로딩 보장
+  google.maps.event.addListenerOnce(gMap, 'idle', function(){
+    google.maps.event.trigger(gMap, 'resize');
+  });
   
   // Legend
   buildDynamicLegend(cfg);
@@ -678,7 +685,8 @@ function downloadHTML() {
   var mapId = DEFAULT_MAPID;
   var title = document.getElementById('tripTitle').value.trim() || '여행 동선';
   var subtitle = document.getElementById('tripSubtitle').value.trim() || '';
-  var h = parsedData.hotels, s = parsedData.stops;
+  var h = parsedData.hotels.filter(function(x){ return !x.cancelled; }),
+      s = parsedData.stops.filter(function(x){ return !x.cancelled; });
   
   var allLats = h.map(function(x){return x.lat;}).concat(s.map(function(x){return x.lat;}));
   var allLngs = h.map(function(x){return x.lng;}).concat(s.map(function(x){return x.lng;}));
