@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.3</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.4</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -315,12 +315,8 @@ function renderMapInContainer() {
   var cx = avg(allLats);
   var cy = avg(allLngs);
   
-  // 줌 레벨 자동 계산: 장소들의 분포 범위에 따라
-  // fitBounds로 모든 마커가 보이도록 자동 조정
-  var bounds = new google.maps.LatLngBounds();
-  cfg.hotels.forEach(function(h){ bounds.extend(new google.maps.LatLng(h.lat, h.lng)); });
-  cfg.stops.forEach(function(p){ bounds.extend(new google.maps.LatLng(p.lat, p.lng)); });
-  gMap.fitBounds(bounds, 80); // 80px 패딩
+  // 줌 레벨 자동 계산: 장소들의 분포 범위에 따라 (fitBounds가 덮어씀)
+  var zoom = 11;
   
   if (!document.getElementById('mapsScript')) {
     var script = document.createElement('script');
@@ -421,6 +417,12 @@ function onMapsLoaded() {
     }
     gRtLines.forEach(function(l){ gAllLines.push(l); });
   }
+  
+  // 모든 마커가 보이도록 자동 줌/이동
+  var bounds = new google.maps.LatLngBounds();
+  cfg.hotels.forEach(function(h){ bounds.extend(new google.maps.LatLng(h.lat, h.lng)); });
+  cfg.stops.forEach(function(p){ bounds.extend(new google.maps.LatLng(p.lat, p.lng)); });
+  gMap.fitBounds(bounds, 80);
   
   // Legend
   buildDynamicLegend(cfg);
