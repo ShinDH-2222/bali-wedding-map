@@ -45,7 +45,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 .status{font-size:13px;padding:8px 12px;border-radius:6px;margin-top:8px}
 .status.ok{background:#e6f4ea;color:#1e7e34}
 .status.err{background:#fce8e6;color:#c5221f}
-#mapContainer{display:none;width:100%;height:70vh;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin-top:16px}
+#mapContainer{display:none;width:100%;min-height:60vh;height:calc(100vh - 200px);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin-top:16px}
 .file-info{font-size:12px;color:#1a73e8;margin-top:6px}
 </style>
 </head>
@@ -76,36 +76,27 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
   <h2>📋 여행 데이터 입력</h2>
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('upload')">📁 파일 업로드</button>
-    <button class="tab-btn" onclick="switchTab('text')">✏️ 직접 입력</button>
     <button class="tab-btn" onclick="switchTab('sample')">📋 샘플 데이터</button>
-    <button class="tab-btn" onclick="switchTab('ai')">🤖 AI 파싱</button>
   </div>
 
-  <!-- Tab: Upload -->
+  <!-- Tab: Upload (AI auto-parse) -->
   <div class="tab-content active" id="tab-upload">
+    <p style="font-size:13px;color:#555;margin-bottom:8px">📎 <b>엑셀, CSV, 텍스트 파일</b>을 올리거나 자유 텍스트를 붙여넣으세요. AI가 장소·날짜·좌표를 자동 추출합니다. 경비 항목은 알아서 제외!</p>
     <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
       <div class="icon">📁</div>
       <div class="hint">클릭하여 파일 선택 (.xlsx, .csv, .txt)<br>또는 파일을 여기에 드래그하세요</div>
       <div class="file-info" id="fileInfo"></div>
       <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleFile(event)">
     </div>
-    <p style="font-size:12px;color:#888;margin-top:8px">
-      📌 엑셀/CSV 컬럼: <b>type</b>(hotel/stop), <b>name</b>, <b>lat</b>, <b>lng</b>, <b>date</b>, <b>color</b>, <b>note</b>, <b>nid</b><br>
-      또는 구분자(<b>|</b> 또는 <b>탭</b>)로 구분된 텍스트 파일
-    </p>
+    <textarea id="textInput" placeholder="또는 여기에 여행 일정을 자유롭게 적으세요.&#10;경비 정보가 섞여있어도 AI가 알아서 장소만 골라냅니다.&#10;&#10;예시)&#10;9월 14일 인천→발리, 노보텔 1박, 항공요금 46만원&#10;9월 15일 가루다 위스누 구경, 우붓 카욘밸리 3박&#10;..." style="min-height:140px;margin-top:8px"></textarea>
+    <div id="aiStatus" style="margin-top:8px"></div>
+    <div id="aiResult" style="margin-top:8px;display:none">
+      <div class="status ok" id="aiSummary"></div>
+      <button class="btn btn-primary" onclick="applyAiResult()" style="margin-top:8px">✅ 이 데이터로 맵 만들기</button>
+    </div>
   </div>
 
-  <!-- Tab: Text -->
-  <div class="tab-content" id="tab-text">
-    <textarea id="textInput" placeholder="한 줄에 하나씩 입력하세요. 형식:
-type | name | lat | lng | date | color | note | nid
-예)
-hotel | 노보텔 발리 | -8.744 | 115.1652 | 09/14-15 | #2196F3 | 공항 인근 | n1
-hotel | 카욘밸리 | -8.4979 | 115.2756 | 09/15-18 | #4CAF50 | 우붓 | n2
-stop | 가루다 위스누 | -8.8142 | 115.1667 | day2 | #e74c3c | 🏛️ | n11
-stop | 타나바락 | -8.651 | 115.1345 | day2 | #e67e22 | 🧗 | n12"></textarea>
-    <p style="font-size:12px;color:#888;margin-top:4px">구분자: | (파이프) 또는 탭. type: <b>hotel</b>(숙소) 또는 <b>stop</b>(경유지)</p>
-  </div>
+
 
   <!-- Tab: Sample -->
   <div class="tab-content" id="tab-sample">
@@ -119,26 +110,10 @@ stop|가루다 위스누 꾸짜나|-8.8142|115.1667|🏛️|#e74c3c|09/15 로드
 stop|타나바락 절벽|-8.651|115.1345|🧗|#e67e22|09/15 로드트립|n12
 stop|팔밀라 비치클럽|-8.8383|115.1635|🏖️|#2ecc71|09/15 로드트립|n13
 stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</textarea>
-    <button class="btn btn-outline" onclick="document.getElementById('textInput').value=document.getElementById('sampleText').value;switchTab('text');">이 데이터로 시작하기 →</button>
+    <button class="btn btn-outline" onclick="document.getElementById('textInput').value=document.getElementById('sampleText').value;switchTab('upload');">이 데이터로 시작하기 →</button>
   </div>
 
-  <!-- Tab: AI Parse -->
-  <div class="tab-content" id="tab-ai">
-    <p style="font-size:13px;color:#555;margin-bottom:8px">✏️ 여행 일정 텍스트를 붙여넣거나 <b>엑셀/CSV 파일</b>을 올리세요. AI가 장소·날짜·좌표를 자동 추출하고, 경비 항목은 알아서 제외합니다.</p>
-    <div class="upload-zone" id="aiDropZone" style="margin-bottom:8px;padding:12px" onclick="document.getElementById('aiFileInput').click()">
-      <div style="font-size:18px">📎</div>
-      <div style="font-size:12px;color:#888">엑셀 파일을 여기에 드래그하세요 (경비+일정 혼합 OK)</div>
-      <div class="file-info" id="aiFileInfo"></div>
-      <input type="file" id="aiFileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleAiFile(event)">
-    </div>
-    <textarea id="aiInput" placeholder="또는 여기에 여행 일정을 자유롭게 적으세요.&#10;경비 정보가 섞여있어도 AI가 알아서 장소만 골라냅니다.&#10;&#10;예시)&#10;9월 14일 인천→발리, 노보텔 1박, 항공요금 46만원&#10;9월 15일 가루다 위스누 구경, 우붓 카욘밸리 3박&#10;..." style="min-height:140px"></textarea>
-    <button class="btn btn-primary" id="aiBtn" onclick="aiParse()" style="margin-top:8px">🤖 AI로 분석하기</button>
-    <div id="aiStatus" style="margin-top:8px"></div>
-    <div id="aiResult" style="margin-top:8px;display:none">
-      <div class="status ok" id="aiSummary"></div>
-      <button class="btn btn-primary" onclick="applyAiResult()" style="margin-top:8px">✅ 이 데이터로 맵 만들기</button>
-    </div>
-  </div>
+
 
   <div id="parseStatus"></div>
   <div class="btn-row">
@@ -194,7 +169,8 @@ function goStep(n) {
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
   document.querySelectorAll('.tab-content').forEach(function(c){ c.classList.remove('active'); });
-  document.querySelector('.tab-btn[onclick*="'+name+'"]').classList.add('active');
+  var tb = document.querySelector('.tab-btn[onclick*="'+name+'"]');
+  if (tb) tb.classList.add('active');
   document.getElementById('tab-'+name).classList.add('active');
 }
 
@@ -206,25 +182,40 @@ function resetAll() {
 }
 
 // ═══════════════════════════════════════════
-// File Upload
+// File Upload (auto AI-parse)
 // ═══════════════════════════════════════════
-function handleFile(e) {
-  var f = e.target.files[0];
-  if (!f) return;
-  document.getElementById('fileInfo').textContent = '📄 ' + f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
-  var ext = f.name.split('.').pop().toLowerCase();
-  var reader = new FileReader();
-  reader.onload = function(ev) {
-    if (ext === 'xlsx' || ext === 'xls') {
-      parseXLSX(ev.target.result);
-    } else {
-      parseText(ev.target.result);
-    }
-  };
+function handleFile(event) {
+  var file = event.target.files[0];
+  var fileInfo = document.getElementById('fileInfo');
+  if (!file) return;
+  fileInfo.textContent = '⏳ ' + file.name + ' 분석 중...';
+  
+  var ext = file.name.split('.').pop().toLowerCase();
   if (ext === 'xlsx' || ext === 'xls') {
-    reader.readAsArrayBuffer(f);
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var wb = XLSX.read(e.target.result, {type:'array'});
+        var allText = [];
+        wb.SheetNames.forEach(function(sn){
+          var ws = wb.Sheets[sn];
+          var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+          rows.forEach(function(r){ if (Array.isArray(r)) allText.push(r.join('\t')); });
+        });
+        fileInfo.textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB) → AI 분석 시작';
+        aiParseFromText(allText.join('\n'));
+      } catch(err) {
+        fileInfo.textContent = '❌ 파일 읽기 실패: ' + err.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
   } else {
-    reader.readAsText(f);
+    var reader = new FileReader();
+    reader.onload = function(e){
+      fileInfo.textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB) → AI 분석 시작';
+      aiParseFromText(e.target.result);
+    };
+    reader.readAsText(file);
   }
 }
 
@@ -239,83 +230,8 @@ dz.addEventListener('drop', function(e){
 });
 
 // ═══════════════════════════════════════════
-// Parsers
+// Helpers
 // ═══════════════════════════════════════════
-function parseXLSX(buf) {
-  try {
-    var wb = XLSX.read(buf, {type:'array'});
-    var ws = wb.Sheets[wb.SheetNames[0]];
-    var rows = XLSX.utils.sheet_to_json(ws, {header:1});
-    // 첫 행이 헤더면 건너뛰기
-    if (rows.length > 0 && typeof rows[0][0] === 'string' && rows[0][0].toLowerCase().includes('type')) {
-      rows = rows.slice(1);
-    }
-    processRows(rows);
-  } catch(e) {
-    showStatus('err', '엑셀 파싱 오류: ' + e.message);
-  }
-}
-
-function parseText(text) {
-  var lines = text.split(/[\n\r]+/).filter(function(l){ return l.trim(); });
-  // 구분자 감지
-  var sep = '|';
-  if (lines[0] && lines[0].indexOf('\t') >= 0) sep = '\t';
-  if (lines[0] && lines[0].indexOf(',') >= 0 && lines[0].indexOf('|') < 0) sep = ',';
-  
-  // 헤더 건너뛰기
-  if (lines[0] && lines[0].toLowerCase().indexOf('type') >= 0 && lines[0].toLowerCase().indexOf('lat') >= 0) {
-    lines = lines.slice(1);
-  }
-  
-  var rows = lines.map(function(l){
-    return l.split(sep).map(function(c){ return c.trim(); });
-  });
-  processRows(rows);
-}
-
-function processRows(rows) {
-  var hotels = [], stops = [];
-  var skipped = 0; // 유효하지 않은 좌표 카운트
-  rows.forEach(function(r, i){
-    // 모든 셀을 문자열로 변환 (숫자/날짜 처리)
-    r = r.map(function(c){ return c == null ? '' : String(c); });
-    if (r.length < 3) return;
-    var type = (r[0] || '').trim().toLowerCase();
-    var item = {
-      name: (r[1] || '').trim(),
-      lat: parseFloat(r[2]),
-      lng: parseFloat(r[3]),
-      date: (r[4] || '').trim(),
-      color: (r[5] || '').trim() || autoColor(i),
-      note: (r[6] || '').trim(),
-      nid: (r[7] || '').trim() || ('n' + (i+1)),
-      no: '',
-      cancelled: false
-    };
-    if (!item.name || isNaN(item.lat) || isNaN(item.lng)) { skipped++; return; }
-    // 좌표 유효성 검증: 위도 -90~90, 경도 -180~180 벗어나면 스킵
-    if (Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) { skipped++; return; }
-    
-    if (type === 'stop') {
-      item.no = (i+1) + '';
-      item.emoji = item.date || '📍';
-      item.date = item.note || '';
-      stops.push(item);
-    } else {
-      // hotel or default
-      item.no = (hotels.length + 1) + '';
-      hotels.push(item);
-    }
-  });
-  
-  parsedData = { hotels: hotels, stops: stops };
-  var msg = '✅ 파싱 완료! 숙소 ' + hotels.length + '개, 경유지 ' + stops.length + '개';
-  if (skipped > 0) msg += '\n⚠️ 유효하지 않은 좌표 ' + skipped + '개 제외됨 (위도/경도가 범위를 벗어났습니다)';
-  showStatus('ok', msg);
-  document.getElementById('buildBtn').disabled = (hotels.length === 0);
-}
-
 function autoColor(i) {
   var colors = ['#2196F3','#4CAF50','#FF9800','#E91E63','#9C27B0','#e74c3c','#e67e22','#2ecc71','#3498db','#f39c12'];
   return colors[i % colors.length];
@@ -330,16 +246,21 @@ function showStatus(type, msg) {
 // Map Generation
 // ═══════════════════════════════════════════
 function generateMap() {
-  // 텍스트 입력이 있으면 파싱
-  var textData = document.getElementById('textInput').value.trim();
-  if (textData) parseText(textData);
+  // AI 파싱 결과가 있으면 그대로 사용
+  if (parsedData.hotels.length > 0) { goStep(3); return; }
   
-  if (parsedData.hotels.length === 0) {
-    alert('최소 2개 이상의 장소를 입력해주세요.\n\n📁 파일 업로드 또는 ✏️ 직접 입력 탭에서 데이터를 넣어주세요.');
+  // 텍스트 영역에 내용이 있으면 AI 파싱 후 생성
+  var textData = document.getElementById('textInput').value.trim();
+  if (textData) {
+    document.getElementById('buildBtn').disabled = true;
+    document.getElementById('buildBtn').textContent = '⏳ AI 분석 중...';
+    aiParseFromText(textData).then(function(){
+      if (parsedData.hotels.length > 0) goStep(3);
+    });
     return;
   }
   
-  goStep(3);
+  alert('파일을 업로드하거나 여행 일정 텍스트를 입력해주세요.');
 }
 
 function renderMapInContainer() {
@@ -555,57 +476,17 @@ function resetMapFilter() {
 var DEEPSEEK_KEY = 'sk-16cb0e576b524bcda329f1d3489b941f';
 var aiParsedData = null;
 
-function handleAiFile(event) {
-  var f = event.target.files[0]; if (!f) return;
-  document.getElementById('aiFileInfo').textContent = f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
-  readFileAsText(f, function(txt){ aiFileContent = txt; });
-}
-(function(){
-  var dz = document.getElementById('aiDropZone'); if (!dz) return;
-  dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='#2196F3'; });
-  dz.addEventListener('dragleave', function(e){ dz.style.borderColor='#ccc'; });
-  dz.addEventListener('drop', function(e){
-    e.preventDefault(); dz.style.borderColor='#ccc';
-    var f = e.dataTransfer.files[0]; if (!f) return;
-    document.getElementById('aiFileInfo').textContent = f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
-    readFileAsText(f, function(txt){ aiFileContent = txt; });
-  });
-})();
-function readFileAsText(file, cb) {
-  var ext = file.name.split('.').pop().toLowerCase();
-  if (ext === 'xlsx' || ext === 'xls') {
-    var reader = new FileReader();
-    reader.onload = function(e){
-      try {
-        var wb = XLSX.read(e.target.result, {type:'array'});
-        var allText = [];
-        wb.SheetNames.forEach(function(sn){
-          var ws = wb.Sheets[sn];
-          var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-          rows.forEach(function(r){ if (Array.isArray(r)) allText.push(r.join('\t')); });
-        });
-        cb(allText.join('\n'));
-      } catch(err) { cb(''); }
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    var reader = new FileReader();
-    reader.onload = function(e){ cb(e.target.result); };
-    reader.readAsText(file);
-  }
-}
-async function aiParse() {
-  var text = document.getElementById('aiInput').value.trim();
-  var fileText = aiFileContent || '';
-  if (!text && !fileText) { alert('분석할 텍스트를 입력하거나 엑셀 파일을 업로드해주세요.'); return; }
-  var combinedText = (text ? text + '\n\n' : '') + fileText;
+async function aiParseFromText(rawText) {
+  if (!rawText) return;
+  var combinedText = rawText;
+  // Also include textarea content
+  var ta = document.getElementById('textInput');
+  if (ta && ta.value.trim()) combinedText = ta.value.trim() + '\n\n' + rawText;
   
-  var btn = document.getElementById('aiBtn');
   var statusEl = document.getElementById('aiStatus');
   var resultEl = document.getElementById('aiResult');
   
-  btn.disabled = true; btn.textContent = '⏳ 분석 중...';
-  statusEl.innerHTML = '<div class="status ok">🤖 AI가 데이터를 분석하고 있습니다 (경비 항목은 자동 제외)...</div>';
+    statusEl.innerHTML = '<div class="status ok">🤖 AI가 데이터를 분석하고 있습니다 (경비 항목은 자동 제외)...</div>';
   resultEl.style.display = 'none';
   
   try {
@@ -616,23 +497,27 @@ async function aiParse() {
 
 YOUR JOB: Extract ONLY real-world LOCATIONS that can be shown on a map. IGNORE all expense items and non-location data.
 
-Rules:
+TYPE CLASSIFICATION (IMPORTANT - get this right):
+- "hotel" = accommodation: hotels, resorts, villas, Airbnb, guesthouses, ryokans, hostels, any place where you SLEEP/STAY overnight
+- "stop" = non-accommodation: airports, temples, beaches, landmarks, viewpoints, restaurants, shopping areas, sightseeing spots
+
+EXTRACTION RULES:
 1. ONLY extract physical places: hotels, resorts, villas, Airbnbs, landmarks, temples, beaches, airports, viewpoints
 2. DO NOT extract: expense categories (airfare, insurance, food), payment amounts, non-place names
 3. If a row looks like a cost item, SKIP IT. If it looks like a hotel/place, INCLUDE IT.
-4. The data may be in tab-separated format (spreadsheet cells). Look for location names in the text.
-5. Use your knowledge of world geography to estimate coordinates for each place.
+4. If a name contains words like "hotel", "resort", "villa", "bnb", "guesthouse", "ryokan", "hostel", "motel" → it IS a "hotel"
+5. Chronological order, cancelled hotels should still be included with cancelled:true
 
 For each extracted location:
-- type: "hotel" (accommodation) or "stop" (sightseeing/airport/landmark)
-- name: clean name only, no prices or codes
+- type: "hotel" or "stop" (as defined above)
+- name: clean name only, no prices, booking codes, or room numbers
 - lat: latitude (-90 to 90)
 - lng: longitude (-180 to 180)
 - date: dates mentioned, e.g. "09/14-15"
 - note: brief context (e.g. "near airport", "cancelled")
-- nid: "n1", "n2" etc. in chronological order
+- nid: "n1", "n2" etc. in chronological order (hotels and stops numbered together)
 
-CRITICAL: Return ONLY a valid JSON array. No markdown, no explanation. Every lat/lng MUST be valid coordinates.
+IMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation.
 Format: [{"type":"hotel","name":"...","lat":...,"lng":...,"date":"...","note":"...","nid":"n1"},...]
 
 Data to analyze:
@@ -692,7 +577,9 @@ ${combinedText}`;
     
     if (hotels.length === 0) throw new Error('추출된 장소가 없습니다. 여행 일정에 장소(호텔/관광지)가 포함되어 있는지 확인해주세요.');
     
-    aiParsedData = { hotels: hotels, stops: stops };
+    parsedData = { hotels: hotels, stops: stops };
+    document.getElementById('buildBtn').disabled = false;
+    if (document.getElementById('fileInfo')) document.getElementById('fileInfo').textContent += ' ✅ 완료';
     
     statusEl.innerHTML = '<div class="status ok">✅ 분석 완료! (경비 항목 자동 제외됨)</div>';
     document.getElementById('aiSummary').innerHTML = 
@@ -705,12 +592,10 @@ ${combinedText}`;
     console.error('AI parse error:', e);
   }
   
-  btn.disabled = false; btn.textContent = '🤖 AI로 분석하기';
 }
 
 function applyAiResult() {
-  if (!aiParsedData) return;
-  parsedData = aiParsedData;
+  if (!parsedData || !parsedData.hotels.length) return;
   // 제목이 비어있으면 AI 파싱 텍스트 첫 30글자로 채우기
   var titleEl = document.getElementById('tripTitle');
   if (!titleEl.value.trim()) {
