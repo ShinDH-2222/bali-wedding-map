@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>여행 지도 빌더 (Travel Map Builder)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -51,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder</span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.1</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -357,8 +360,18 @@ function onMapsLoaded() {
   gIw = new google.maps.InfoWindow();
   
   // Hotel markers
+  // 호텔 마커 - 겹침 방지를 위해 근접 마커 오프셋
+  var usedCoords = [];
   cfg.hotels.forEach(function(h, i){
-    var m = mk(h.lat, h.lng, h.color, h.cancelled ? '✕' : (i+1)+'', h.cancelled ? 0.5 : 1);
+    var lat = h.lat, lng = h.lng;
+    // 이미 같은 위치에 마커가 있으면 살짝 이동
+    for (var k = 0; k < usedCoords.length; k++) {
+      if (Math.abs(usedCoords[k].lat - lat) < 0.001 && Math.abs(usedCoords[k].lng - lng) < 0.001) {
+        lat += 0.002 * (k + 1);
+      }
+    }
+    usedCoords.push({lat: lat, lng: lng});
+    var m = mk(lat, lng, h.color, h.cancelled ? '✕' : (i+1)+'', h.cancelled ? 0.5 : 1);
     m.addListener('click', function(){
       gIw.setContent('<b>🏨 ' + h.name + '</b><br>📅 ' + h.date + (h.note ? '<br><span style="color:'+h.color+'">'+h.note+'</span>' : ''));
       gIw.open({map:gMap, anchor:m});
