@@ -48,13 +48,13 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 .status{font-size:13px;padding:8px 12px;border-radius:6px;margin-top:8px}
 .status.ok{background:#e6f4ea;color:#1e7e34}
 .status.err{background:#fce8e6;color:#c5221f}
-#mapContainer{display:none;width:100%;min-height:60vh;height:calc(100vh - 200px);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin-top:16px}
+#mapContainer{display:none;width:100%;min-height:70vh;height:calc(100vh - 120px);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin-top:8px}
 .file-info{font-size:12px;color:#1a73e8;margin-top:6px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.1</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.2</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -170,9 +170,13 @@ function goStep(n) {
   });
   currentStep = n;
   if (n === 3) {
+    document.querySelector('.steps').style.display = 'none';
+    document.querySelector('h1').style.display = 'none';
     document.getElementById('mapContainer').style.display = 'block';
     setTimeout(function(){ renderMapInContainer(); }, 300);
   } else {
+    document.querySelector('.steps').style.display = 'flex';
+    document.querySelector('h1').style.display = 'block';
     document.getElementById('mapContainer').style.display = 'none';
   }
   // 2단계로 돌아갈 때 AI 결과 표시만 초기화 (데이터는 유지)
