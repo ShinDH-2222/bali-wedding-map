@@ -6,12 +6,13 @@
 <title>발리 결혼여행 동선 2026.09.14-24</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;width:100%}
 body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif}
 #map{height:100vh;width:100%}
 .legend-wrap{background:rgba(255,255,255,0.95);border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,0.18);font-size:13px;line-height:1.8;min-width:290px;max-width:370px;overflow:hidden}
 .legend-header{padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
 .legend-header h3{font-size:15px;font-weight:700;margin:0}
-.legend-toggle{background:#eee;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:default;display:flex;align-items:center;justify-content:center;transition:transform 0.3s}
+.legend-toggle{background:#eee;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;display:flex;align-items:center;justify-content:center;transition:transform 0.3s}
 .legend-toggle.collapsed{transform:rotate(-90deg)}
 .legend-body{padding:0 14px 12px;transition:max-height 0.35s ease,opacity 0.3s;max-height:700px;opacity:1;overflow:hidden}
 .legend-body.collapsed{max-height:0;padding-top:0;padding-bottom:0;opacity:0}
@@ -41,7 +42,7 @@ var gMap, gIw, gAllLines=[], gRoadTripLine=null, gActiveNode=null;
 function initMap() {
   gMap = new google.maps.Map(document.getElementById('map'), {
     center: {lat:-8.65,lng:115.18}, zoom:11,
-    mapTypeControl:true, streetViewControl:false, mapId:'bali_wedding_2026'
+    mapTypeControl:true, streetViewControl:false
   });
   gIw = new google.maps.InfoWindow();
 
@@ -53,7 +54,7 @@ function initMap() {
 
   var hotels=[
     {no:'1',name:'노보텔 발리 공항',lat:-8.744,lng:115.1652,date:'09/14-15',color:'#2196F3',note:'공항 인근 첫날',nid:'n1'},
-    {no:'2',name:'더 카욘 밸리 리조트',lat:-8.4979151,lng:115.27557890000001,date:'09/15-18',color:'#4CAF50',note:'우붓 · 아고다 예약',nid:'n2'},
+    {no:'2',name:'더 카욘 밸리 리조트',lat:-8.4979,lng:115.2756,date:'09/15-18',color:'#4CAF50',note:'우붓 · 아고다 예약',nid:'n2'},
     {no:'3',name:'아야나 리조트 발리',lat:-8.7862,lng:115.1393,date:'09/18-21',color:'#FF9800',note:'네이버 · 짐바란',nid:'n3'},
     {no:'',name:'❌ 페레레난 (취소)',lat:-8.6518,lng:115.1215,date:'취소',color:'#999',note:'에어비앤비 · 100% 환불',cancelled:true,nid:''},
     {no:'4',name:'아야나 빌라스',lat:-8.788,lng:115.1366,date:'09/21-23',color:'#E91E63',note:'Stayzaaa · 같은 단지',nid:'n4'},
@@ -85,7 +86,6 @@ function initMap() {
     m.addListener('click',function(){gIw.setContent('<b>'+p.emoji+' '+p.no+'. '+p.name+'</b>');gIw.open({map:gMap,anchor:m});});
   });
 
-  // 호텔 이동경로
   hotelRoutes.forEach(function(r){
     var path=r[0].map(function(c){return new google.maps.LatLng(c[0],c[1]);});
     var line=new google.maps.Polyline({
@@ -96,10 +96,9 @@ function initMap() {
     gAllLines.push(line);
   });
 
-  // 로드트립
   var ds=new google.maps.DirectionsService();
   ds.route({
-    origin:{lat:-8.744,lng:115.1652},destination:{lat:-8.4979151,lng:115.27557890000001},
+    origin:{lat:-8.744,lng:115.1652},destination:{lat:-8.4979,lng:115.2756},
     waypoints:[{location:{lat:-8.8142,lng:115.1667},stopover:true},{location:{lat:-8.6510,lng:115.1345},stopover:true},{location:{lat:-8.8383,lng:115.1635},stopover:true},{location:{lat:-8.8294,lng:115.0843},stopover:true}],
     optimizeWaypoints:false,travelMode:google.maps.TravelMode.DRIVING,region:'ID',unitSystem:google.maps.UnitSystem.METRIC
   },function(result,status){
@@ -114,7 +113,7 @@ function initMap() {
       gRoadTripLine._info='🚗 '+km+'km · '+h+'h'+(m>0?m+'m':'')+'<br><small>09/15 로드트립</small>';
       gRoadTripLine.addListener('click',function(ev){gIw.setContent(gRoadTripLine._info);gIw.setPosition(ev.latLng);gIw.open(gMap);});
       gAllLines.push(gRoadTripLine);
-    }
+    }else{console.log('Roadtrip route error: '+status);}
   });
 
   buildLegend();
