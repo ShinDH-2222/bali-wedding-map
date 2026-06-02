@@ -53,20 +53,19 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 <div class="wrap">
 <h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder</span></h1>
 <div class="steps">
-  <div class="step active" data-step="1">① API 키 설정</div>
-  <div class="step" data-step="2">② 여행 데이터 입력</div>
+  <div class="step active" data-step="1">① 여행 정보 입력</div>
+  <div class="step" data-step="2">② 데이터 업로드</div>
   <div class="step" data-step="3">③ 지도 생성</div>
 </div>
 
-<!-- STEP 1: API Key -->
+<!-- STEP 1: Trip Info -->
 <div class="card" id="step1">
-  <h2>🔑 Google Maps API 키</h2>
-  <label>API 키 입력</label>
-  <input type="text" id="apiKey" placeholder="AIzaSy... (Google Cloud Console에서 발급)">
-  <p style="font-size:12px;color:#888;margin-top:4px"><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> → Maps JavaScript API + Directions API 활성화 필요</p>
-  <label>Map ID (선택)</label>
-  <input type="text" id="mapId" placeholder="DEMO_MAP_ID" value="DEMO_MAP_ID">
-  <p style="font-size:12px;color:#888;margin-top:4px">AdvancedMarkerElement 사용 시 필수. Google Cloud Console → Map Management에서 발급</p>
+  <h2>📝 여행 정보</h2>
+  <label>여행 제목</label>
+  <input type="text" id="tripTitle" placeholder="예: 발리 결혼여행 2026">
+  <label>부제목 (선택)</label>
+  <input type="text" id="tripSubtitle" placeholder="예: ✈️ 서울 ↔ 발리 · 10박 11일">
+  <p style="font-size:12px;color:#888;margin-top:12px">🔑 Google Maps는 자동으로 연결됩니다.<br>📍 중심 좌표와 줌 레벨은 입력한 장소에 맞춰 자동 조정됩니다.</p>
   <div class="btn-row">
     <button class="btn btn-primary" onclick="goStep(2)">다음 →</button>
   </div>
@@ -122,19 +121,6 @@ stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</t
     <button class="btn btn-outline" onclick="document.getElementById('textInput').value=document.getElementById('sampleText').value;switchTab('text');">이 데이터로 시작하기 →</button>
   </div>
 
-  <!-- Trip info -->
-  <label>여행 제목</label>
-  <input type="text" id="tripTitle" placeholder="발리 결혼여행 2026">
-  <label>부제목</label>
-  <input type="text" id="tripSubtitle" placeholder="✈️ 서울 ↔ 발리 · 10박 11일">
-  <label>지도 중심 좌표 (선택, 비워두면 자동 계산)</label>
-  <div style="display:flex;gap:8px">
-    <input type="text" id="centerLat" placeholder="위도 (예: -8.65)" style="flex:1">
-    <input type="text" id="centerLng" placeholder="경도 (예: 115.18)" style="flex:1">
-  </div>
-  <label>줌 레벨 <span style="font-weight:400;color:#999">(1-20, 기본 11)</span></label>
-  <input type="text" id="zoomLevel" placeholder="11" value="11">
-
   <div id="parseStatus"></div>
   <div class="btn-row">
     <button class="btn btn-outline" onclick="goStep(1)">← 이전</button>
@@ -161,6 +147,8 @@ stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</t
 // ═══════════════════════════════════════════
 var currentStep = 1;
 var parsedData = { hotels: [], stops: [] };
+var DEFAULT_KEY = 'AIzaSy…ws3Y';
+var DEFAULT_MAPID = 'DEMO_MAP_ID';
 var gMap = null, gIw = null, gAllLines = [], gRtLines = [], gActiveNode = null;
 
 // ═══════════════════════════════════════════
@@ -316,25 +304,12 @@ function showStatus(type, msg) {
 // Map Generation
 // ═══════════════════════════════════════════
 function generateMap() {
-  var key = document.getElementById('apiKey').value.trim();
-  if (!key) {
-    // API 키 없으면 텍스트 데이터도 파싱
-    var textData = document.getElementById('textInput').value.trim();
-    if (textData) parseText(textData);
-    if (parsedData.hotels.length === 0) {
-      alert('API 키를 입력하고 데이터를 업로드/입력해주세요.');
-      return;
-    }
-    alert('API 키를 입력해주세요.');
-    return;
-  }
-  
   // 텍스트 입력이 있으면 파싱
   var textData = document.getElementById('textInput').value.trim();
   if (textData) parseText(textData);
   
   if (parsedData.hotels.length === 0) {
-    alert('최소 2개 이상의 숙소/장소를 입력해주세요.');
+    alert('최소 2개 이상의 장소를 입력해주세요.\n\n📁 파일 업로드 또는 ✏️ 직접 입력 탭에서 데이터를 넣어주세요.');
     return;
   }
   
@@ -342,8 +317,8 @@ function generateMap() {
 }
 
 function renderMapInContainer() {
-  var key = document.getElementById('apiKey').value.trim();
-  var mapId = document.getElementById('mapId').value.trim() || 'DEMO_MAP_ID';
+  var key = DEFAULT_KEY;
+  var mapId = DEFAULT_MAPID;
   var container = document.getElementById('mapContainer');
   container.innerHTML = '<div id="travelMap" style="width:100%;height:100%"></div>';
   
@@ -352,10 +327,26 @@ function renderMapInContainer() {
   var title = document.getElementById('tripTitle').value.trim() || '여행 동선';
   var subtitle = document.getElementById('tripSubtitle').value.trim() || '';
   
-  // 중심 좌표
-  var cx = parseFloat(document.getElementById('centerLat').value) || avg(h.map(function(x){return x.lat;}));
-  var cy = parseFloat(document.getElementById('centerLng').value) || avg(h.map(function(x){return x.lng;}));
-  var zoom = parseInt(document.getElementById('zoomLevel').value) || 11;
+  // 중심 좌표: 모든 장소의 평균
+  var allLats = h.map(function(x){return x.lat;}).concat(s.map(function(x){return x.lat;}));
+  var allLngs = h.map(function(x){return x.lng;}).concat(s.map(function(x){return x.lng;}));
+  var cx = avg(allLats);
+  var cy = avg(allLngs);
+  
+  // 줌 레벨 자동 계산: 장소들의 분포 범위에 따라
+  var latSpread = Math.max.apply(null, allLats) - Math.min.apply(null, allLats);
+  var lngSpread = Math.max.apply(null, allLngs) - Math.min.apply(null, allLngs);
+  var spread = Math.max(latSpread, lngSpread);
+  var zoom = 13; // 기본
+  if (spread > 5) zoom = 7;
+  else if (spread > 2) zoom = 8;
+  else if (spread > 1) zoom = 9;
+  else if (spread > 0.5) zoom = 10;
+  else if (spread > 0.2) zoom = 11;
+  else if (spread > 0.1) zoom = 12;
+  else if (spread > 0.05) zoom = 13;
+  else if (spread > 0.02) zoom = 14;
+  else zoom = 15;
   
   if (!document.getElementById('mapsScript')) {
     var script = document.createElement('script');
@@ -536,14 +527,26 @@ function resetMapFilter() {
 // Download
 // ═══════════════════════════════════════════
 function downloadHTML() {
-  var key = document.getElementById('apiKey').value.trim();
-  var mapId = document.getElementById('mapId').value.trim() || 'DEMO_MAP_ID';
+  var key = DEFAULT_KEY;
+  var mapId = DEFAULT_MAPID;
   var title = document.getElementById('tripTitle').value.trim() || '여행 동선';
   var subtitle = document.getElementById('tripSubtitle').value.trim() || '';
   var h = parsedData.hotels, s = parsedData.stops;
-  var cx = parseFloat(document.getElementById('centerLat').value) || avg(h.map(function(x){return x.lat;}));
-  var cy = parseFloat(document.getElementById('centerLng').value) || avg(h.map(function(x){return x.lng;}));
-  var zoom = parseInt(document.getElementById('zoomLevel').value) || 11;
+  
+  var allLats = h.map(function(x){return x.lat;}).concat(s.map(function(x){return x.lat;}));
+  var allLngs = h.map(function(x){return x.lng;}).concat(s.map(function(x){return x.lng;}));
+  var cx = avg(allLats), cy = avg(allLngs);
+  var spread = Math.max(Math.max.apply(null,allLats)-Math.min.apply(null,allLats), Math.max.apply(null,allLngs)-Math.min.apply(null,allLngs));
+  var zoom = 13;
+  if (spread > 5) zoom = 7;
+  else if (spread > 2) zoom = 8;
+  else if (spread > 1) zoom = 9;
+  else if (spread > 0.5) zoom = 10;
+  else if (spread > 0.2) zoom = 11;
+  else if (spread > 0.1) zoom = 12;
+  else if (spread > 0.05) zoom = 13;
+  else if (spread > 0.02) zoom = 14;
+  else zoom = 15;
   
   // Build standalone HTML
   var hotelsJSON = JSON.stringify(h.map(function(x,i){
