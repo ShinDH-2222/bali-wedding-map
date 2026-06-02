@@ -78,6 +78,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
     <button class="tab-btn active" onclick="switchTab('upload')">📁 파일 업로드</button>
     <button class="tab-btn" onclick="switchTab('text')">✏️ 직접 입력</button>
     <button class="tab-btn" onclick="switchTab('sample')">📋 샘플 데이터</button>
+    <button class="tab-btn" onclick="switchTab('ai')">🤖 AI 파싱</button>
   </div>
 
   <!-- Tab: Upload -->
@@ -119,6 +120,18 @@ stop|타나바락 절벽|-8.651|115.1345|🧗|#e67e22|09/15 로드트립|n12
 stop|팔밀라 비치클럽|-8.8383|115.1635|🏖️|#2ecc71|09/15 로드트립|n13
 stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</textarea>
     <button class="btn btn-outline" onclick="document.getElementById('textInput').value=document.getElementById('sampleText').value;switchTab('text');">이 데이터로 시작하기 →</button>
+  </div>
+
+  <!-- Tab: AI Parse -->
+  <div class="tab-content" id="tab-ai">
+    <p style="font-size:13px;color:#555;margin-bottom:8px">✏️ 여행 일정이나 메모를 <b>자유롭게</b> 붙여넣으세요. AI가 장소·날짜·좌표를 자동 추출합니다.</p>
+    <textarea id="aiInput" placeholder="예시)&#10;&#10;9월 14일 인천에서 발리로 출발. 첫날은 공항 근처 노보텔 발리에서 1박.&#10;9월 15일 아침 체크아웃하고 가루다 위스누 꾸짜나 구경한 뒤 타나바락 절벽 들렀다가 우붓의 카욘밸리 리조트로 이동 (3박).&#10;9월 18일 짐바란의 아야나 리조트로 옮겨서 3박.&#10;9월 21일 같은 단지 아야나 빌라스로 이동 (2박).&#10;9월 23일 꾸타의 알로프트 발리로 이동, 마지막 날 공항 가까이에서 1박.&#10;중간에 페레레난 에어비앤비 예약했는데 취소함.&#10;&#10;이런 식으로 아무렇게나 써도 돼요!" style="min-height:180px"></textarea>
+    <button class="btn btn-primary" id="aiBtn" onclick="aiParse()" style="margin-top:8px">🤖 AI로 분석하기</button>
+    <div id="aiStatus" style="margin-top:8px"></div>
+    <div id="aiResult" style="margin-top:8px;display:none">
+      <div class="status ok" id="aiSummary"></div>
+      <button class="btn btn-primary" onclick="applyAiResult()" style="margin-top:8px">✅ 이 데이터로 맵 만들기</button>
+    </div>
   </div>
 
   <div id="parseStatus"></div>
@@ -523,6 +536,126 @@ function resetMapFilter() {
     var isRt = gRtLines.indexOf(l) >= 0;
     l.setOptions({strokeOpacity: isRt ? 0.7 : 0.65, strokeWeight: isRt ? 6 : 4});
   });
+}
+
+// ═══════════════════════════════════════════
+// AI Parsing (Gemini)
+// ═══════════════════════════════════════════
+var GEMINI_KEY = 'AIzaSyBGBU7zEtNYhTMu7vVAJoQ-sK2jehG_-V8';
+var aiParsedData = null;
+
+async function aiParse() {
+  var text = document.getElementById('aiInput').value.trim();
+  if (!text) { alert('분석할 여행 텍스트를 입력해주세요.'); return; }
+  
+  var btn = document.getElementById('aiBtn');
+  var statusEl = document.getElementById('aiStatus');
+  var resultEl = document.getElementById('aiResult');
+  
+  btn.disabled = true; btn.textContent = '⏳ 분석 중...';
+  statusEl.innerHTML = '<div class="status ok">🤖 AI가 여행 일정을 분석하고 있습니다...</div>';
+  resultEl.style.display = 'none';
+  
+  try {
+    var prompt = `You are a travel data parser. Extract ALL locations mentioned in this travel itinerary text. For each location, determine if it's a "hotel" (accommodation) or "stop" (sightseeing spot, stopover).
+
+For each location, provide:
+- type: "hotel" or "stop"
+- name: location name
+- lat: latitude (decimal, use your knowledge of world geography to estimate if not given)
+- lng: longitude (decimal)
+- date: dates mentioned for this location (e.g. "09/14-15" or "day 2")
+- note: any extra context (e.g. "near airport", "cancelled")
+- nid: a unique ID like "n1", "n2" etc.
+
+IMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation. Format:
+[{"type":"hotel","name":"...","lat":...,"lng":...,"date":"...","note":"...","nid":"n1"},...]
+
+The locations should be in chronological order as they appear in the itinerary.
+If a location is cancelled, include it but add cancelled:true.
+
+Travel itinerary text:
+${text}`;
+
+    var resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contents: [{parts: [{text: prompt}]}],
+        generationConfig: {temperature: 0.1, maxOutputTokens: 2048}
+      })
+    });
+    
+    if (!resp.ok) {
+      var errText = await resp.text();
+      throw new Error('API error ' + resp.status + ': ' + errText.slice(0,200));
+    }
+    
+    var data = await resp.json();
+    var rawText = data.candidates[0].content.parts[0].text;
+    
+    // JSON 추출 (```json ... ``` 또는 raw JSON)
+    var jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/) || rawText.match(/(\[[\s\S]*\])/);
+    var jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim();
+    var parsed = JSON.parse(jsonStr);
+    
+    if (!Array.isArray(parsed)) throw new Error('AI 응답이 배열이 아닙니다');
+    
+    // Parse into our data format
+    var hotels = [], stops = [];
+    parsed.forEach(function(p, i){
+      var item = {
+        name: p.name || '',
+        lat: parseFloat(p.lat) || 0,
+        lng: parseFloat(p.lng) || 0,
+        date: p.date || '',
+        color: autoColor(i),
+        note: p.note || '',
+        nid: p.nid || ('n'+(i+1)),
+        no: '',
+        cancelled: p.cancelled || false
+      };
+      if (!item.name || isNaN(item.lat) || isNaN(item.lng)) return;
+      if (p.type === 'stop') {
+        item.no = (stops.length + 1) + '';
+        item.emoji = p.emoji || '📍';
+        stops.push(item);
+      } else {
+        item.no = (hotels.length + 1) + '';
+        hotels.push(item);
+      }
+    });
+    
+    if (hotels.length === 0) throw new Error('추출된 장소가 없습니다');
+    
+    aiParsedData = { hotels: hotels, stops: stops };
+    
+    statusEl.innerHTML = '<div class="status ok">✅ 분석 완료!</div>';
+    document.getElementById('aiSummary').innerHTML = 
+      '🏨 숙소 ' + hotels.length + '개: ' + hotels.map(function(h){return h.name;}).join(', ') + '<br>' +
+      '📍 경유지 ' + stops.length + '개: ' + stops.map(function(s){return s.name;}).join(', ');
+    resultEl.style.display = 'block';
+    
+  } catch(e) {
+    statusEl.innerHTML = '<div class="status err">❌ 분석 실패: ' + e.message + '</div>';
+    console.error('AI parse error:', e);
+  }
+  
+  btn.disabled = false; btn.textContent = '🤖 AI로 분석하기';
+}
+
+function applyAiResult() {
+  if (!aiParsedData) return;
+  parsedData = aiParsedData;
+  // 제목이 비어있으면 AI 파싱 텍스트 첫 30글자로 채우기
+  var titleEl = document.getElementById('tripTitle');
+  if (!titleEl.value.trim()) {
+    titleEl.value = '여행 동선';
+  }
+  showStatus('ok', '✅ AI 분석 데이터 적용 완료! 숙소 ' + parsedData.hotels.length + '개, 경유지 ' + parsedData.stops.length + '개');
+  document.getElementById('buildBtn').disabled = false;
+  // 바로 맵 생성
+  generateMap();
 }
 
 // ═══════════════════════════════════════════
