@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.4</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.5</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -170,14 +170,27 @@ function goStep(n) {
   });
   currentStep = n;
   if (n === 3) {
+    // 풀스크린 모드: 모든 제약 제거
     document.querySelector('.steps').style.display = 'none';
     document.querySelector('h1').style.display = 'none';
+    document.querySelector('.wrap').style.maxWidth = 'none';
+    document.querySelector('.wrap').style.padding = '0';
+    document.getElementById('step3').classList.add('fullscreen');
     document.getElementById('mapContainer').style.display = 'block';
+    document.getElementById('mapContainer').style.height = 'calc(100vh - 50px)';
+    document.getElementById('mapContainer').style.borderRadius = '0';
+    document.getElementById('mapContainer').style.marginTop = '0';
     setTimeout(function(){ renderMapInContainer(); }, 300);
   } else {
     document.querySelector('.steps').style.display = 'flex';
     document.querySelector('h1').style.display = 'block';
+    document.querySelector('.wrap').style.maxWidth = '';
+    document.querySelector('.wrap').style.padding = '';
+    document.getElementById('step3').classList.remove('fullscreen');
     document.getElementById('mapContainer').style.display = 'none';
+    document.getElementById('mapContainer').style.height = '';
+    document.getElementById('mapContainer').style.borderRadius = '';
+    document.getElementById('mapContainer').style.marginTop = '';
   }
   // 2단계로 돌아갈 때 AI 결과 표시만 초기화 (데이터는 유지)
   if (n === 2) {
