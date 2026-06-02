@@ -5,10 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>발리 결혼여행 동선 2026.09.14-24</title>
 <style>
-  * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{ font-family:-apple-system,'Apple SD Gothic Neo',sans-serif; }}
-  #map {{ height:100vh; width:100%; }}
-  .legend-wrap {{
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Apple SD Gothic Neo',sans-serif; }
+  #map { height:100vh; width:100%; }
+  .legend-wrap {
     background:rgba(255,255,255,0.95);
     border-radius:14px;
     box-shadow:0 2px 14px rgba(0,0,0,0.18);
@@ -17,17 +17,17 @@
     min-width:290px;
     max-width:360px;
     overflow:hidden;
-  }}
-  .legend-header {{
+  }
+  .legend-header {
     padding:12px 14px;
     cursor:pointer;
     display:flex;
     justify-content:space-between;
     align-items:center;
     user-select:none;
-  }}
-  .legend-header h3 {{ font-size:15px; font-weight:700; margin:0; }}
-  .legend-toggle {{
+  }
+  .legend-header h3 { font-size:15px; font-weight:700; margin:0; }
+  .legend-toggle {
     background:#eee;
     border:none;
     border-radius:50%;
@@ -38,29 +38,29 @@
     align-items:center;
     justify-content:center;
     transition:transform 0.3s;
-  }}
-  .legend-toggle.collapsed {{ transform:rotate(-90deg); }}
-  .legend-body {{
+  }
+  .legend-toggle.collapsed { transform:rotate(-90deg); }
+  .legend-body {
     padding:0 14px 12px;
     transition:max-height 0.35s ease, opacity 0.3s;
     max-height:500px;
     opacity:1;
     overflow:hidden;
-  }}
-  .legend-body.collapsed {{ max-height:0; padding-top:0; padding-bottom:0; opacity:0; }}
-  .legend-body .dot {{ display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle; }}
-  .route-strip {{
+  }
+  .legend-body.collapsed { max-height:0; padding-top:0; padding-bottom:0; opacity:0; }
+  .legend-body .dot { display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle; }
+  .route-strip {
     background:rgba(255,255,255,0.95);
     padding:8px 14px;
     border-radius:8px;
     font-size:12px;
     box-shadow:0 1px 6px rgba(0,0,0,0.15);
-  }}
-  .roadtrip-badge {{
+  }
+  .roadtrip-badge {
     background:#ff6b6b; color:white;
     font-size:10px; padding:1px 6px; border-radius:4px;
     margin-left:4px; vertical-align:middle;
-  }}
+  }
 </style>
 </head>
 <body>
@@ -94,7 +94,7 @@ function initMap() {
     return new google.maps.marker.AdvancedMarkerElement({map,position:{lat,lng},content:div});
   }
 
-  const hotels = [    {{no:1,name:"노보텔 발리 공항",lat:-8.7440,lng:115.1652,date:"09/14-15",color:"#2196F3",note:"공항 인근 첫날"}},{{no:2,name:"더 카욘 밸리 리조트",lat:-8.4979151,lng:115.27557890000001,date:"09/15-18",color:"#4CAF50",note:"우붓 · 아고다 예약"}},{{no:3,name:"아야나 리조트 발리",lat:-8.7862,lng:115.1393,date:"09/18-21",color:"#FF9800",note:"네이버 · 짐바란"}},{{no:"",name:"❌ 페레레난 (취소)",lat:-8.6518,lng:115.1215,date:"취소",color:"#999",note:"에어비앤비 · 100% 환불",cancelled:true}},{{no:4,name:"아야나 빌라스",lat:-8.7880,lng:115.1366,date:"09/21-23",color:"#E91E63",note:"Stayzaaa · 같은 단지"}},{{no:5,name:"알로프트 발리 꾸타",lat:-8.7150,lng:115.1708,date:"09/23-24",color:"#9C27B0",note:"여기어때 · 출발 전날"}},
+  const hotels = [    {no:1,name:"노보텔 발리 공항",lat:-8.7440,lng:115.1652,date:"09/14-15",color:"#2196F3",note:"공항 인근 첫날"},{no:2,name:"더 카욘 밸리 리조트",lat:-8.4979151,lng:115.27557890000001,date:"09/15-18",color:"#4CAF50",note:"우붓 · 아고다 예약"},{no:3,name:"아야나 리조트 발리",lat:-8.7862,lng:115.1393,date:"09/18-21",color:"#FF9800",note:"네이버 · 짐바란"},{no:"",name:"❌ 페레레난 (취소)",lat:-8.6518,lng:115.1215,date:"취소",color:"#999",note:"에어비앤비 · 100% 환불",cancelled:true},{no:4,name:"아야나 빌라스",lat:-8.7880,lng:115.1366,date:"09/21-23",color:"#E91E63",note:"Stayzaaa · 같은 단지"},{no:5,name:"알로프트 발리 꾸타",lat:-8.7150,lng:115.1708,date:"09/23-24",color:"#9C27B0",note:"여기어때 · 출발 전날"},
   ];
 
   hotels.forEach(function(h) {
