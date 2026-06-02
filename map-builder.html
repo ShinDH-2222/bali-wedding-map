@@ -258,8 +258,10 @@ function parseText(text) {
 function processRows(rows) {
   var hotels = [], stops = [];
   rows.forEach(function(r, i){
+    // 모든 셀을 문자열로 변환 (숫자/날짜 처리)
+    r = r.map(function(c){ return c == null ? '' : String(c); });
     if (r.length < 3) return;
-    var type = (r[0] || '').toLowerCase().trim();
+    var type = (r[0] || '').trim().toLowerCase();
     var item = {
       name: (r[1] || '').trim(),
       lat: parseFloat(r[2]),
