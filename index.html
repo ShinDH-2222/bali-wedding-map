@@ -121,7 +121,22 @@ function initMap() {
         gRtLines.push(line);
       });
       gRtLines.forEach(function(l){gAllLines.push(l);});
-    }else{console.log('Roadtrip route error: '+status);}
+    }else{
+      console.log('Roadtrip route error: '+status);
+      // DirectionsService 실패 시 직선 폴리라인 폴백
+      var rtStops=[{lat:-8.744,lng:115.1652},{lat:-8.8142,lng:115.1667},{lat:-8.6510,lng:115.1345},{lat:-8.8383,lng:115.1635},{lat:-8.8294,lng:115.0843},{lat:-8.4979,lng:115.2756}];
+      for(var i=0;i<rtStops.length-1;i++){
+        var dkm=(google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(rtStops[i].lat,rtStops[i].lng),new google.maps.LatLng(rtStops[i+1].lat,rtStops[i+1].lng))/1000).toFixed(1);
+        var line=new google.maps.Polyline({path:[rtStops[i],rtStops[i+1]],map:gMap,strokeColor:'#ff6b6b',strokeWeight:6,strokeOpacity:0.7,geodesic:true,
+          icons:[{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:3,strokeColor:'#ff6b6b',strokeWeight:3},repeat:'150px'}]});
+        line._info='🚗 '+dkm+'km · 직선거리<br><small>'+RT_NAMES[i]+'</small>';
+        line._idx=i;
+        line.addListener('click',function(ev){gIw.setContent(this._info);gIw.setPosition(ev.latLng);gIw.open(gMap);});
+        gRtLines.push(line);
+      }
+      gRtLines.forEach(function(l){gAllLines.push(l);});
+      console.log('Roadtrip fallback loaded: '+gRtLines.length+' segments');
+    }
   });
 
   buildLegend();
@@ -196,6 +211,6 @@ function resetFilter(){
   });
 }
 </script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCf8nBxRmzu2dFec0RB_qNRfZJTa5_ws3Y&loading=async&callback=initMap&libraries=marker&language=ko&region=ID"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCf8nBxRmzu2dFec0RB_qNRfZJTa5_ws3Y&loading=async&callback=initMap&libraries=marker,geometry&language=ko&region=ID"></script>
 </body>
 </html>
