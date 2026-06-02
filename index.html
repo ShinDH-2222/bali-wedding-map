@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💒 발리 결혼여행 동선 | 2026.09.14~24</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; }
+  #map { height: 100vh; width: 100%; }
+  .legend {
+    background: rgba(255,255,255,0.95);
+    padding: 14px 18px;
+    border-radius: 14px;
+    box-shadow: 0 3px 16px rgba(0,0,0,0.15);
+    font-size: 13px;
+    line-height: 1.9;
+    max-width: 340px;
+  }
+  .legend h3 { margin-bottom: 8px; font-size: 16px; }
+  .legend .dot { display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px; }
+  .route-info {
+    background: rgba(255,255,255,0.95);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const hotels = [
+  { no:1, name:"노보텔 발리 공항", lat:-8.7440, lng:115.1652, from:"09/14", to:"09/15", color:"#2196F3", note:"공항 인근 첫날 숙소" },
+  { no:2, name:"프리미어 가든 빌라 (세미냑)", lat:-8.6802, lng:115.1605, from:"09/15", to:"09/18", color:"#4CAF50", note:"아고다 예약" },
+  { no:3, name:"아야나 리조트 발리", lat:-8.7862, lng:115.1393, from:"09/18", to:"09/21", color:"#FF9800", note:"네이버 예약 · 짐바란" },
+  { no:"✕", name:"❌ 페레레난 (취소)", lat:-8.6518, lng:115.1215, from:"~~09/18~~", to:"~~09/21~~", color:"#999", note:"에어비앤비 · 100% 환불" },
+  { no:4, name:"아야나 빌라스", lat:-8.7880, lng:115.1366, from:"09/21", to:"09/23", color:"#E91E63", note:"Stayzaaa · 같은 단지" },
+  { no:5, name:"알로프트 발리 꾸타", lat:-8.7150, lng:115.1708, from:"09/23", to:"09/24", color:"#9C27B0", note:"여기어때 · 출발 전날" },
+];
+const airport = { lat:-8.7481, lng:115.1672, name:"응우라 라이 공항 (DPS)" };
+
+const map = L.map('map').setView([-8.71, 115.14], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; CARTO | &copy; OSM', maxZoom: 19
+}).addTo(map);
+
+function createIcon(num, color) {
+  return L.divIcon({
+    className: '', html: `<div style="background:white;border:3px solid ${color};border-radius:50%;width:32px;height:32px;text-align:center;line-height:26px;font-weight:800;font-size:14px;color:${color};box-shadow:0 2px 8px rgba(0,0,0,0.3);">${num}</div>`,
+    iconSize: [32,32], iconAnchor: [16,16], popupAnchor: [0,-18]
+  });
+}
+
+// 공항
+L.marker(airport, { icon: L.divIcon({className:'',html:'<div style="background:#333;border-radius:50%;width:16px;height:16px;box-shadow:0 0 0 4px rgba(0,0,0,0.15);"></div>',iconSize:[16,16],iconAnchor:[8,8]}) })
+ .bindPopup('<b>✈️ DPS 공항</b><br>09/14 도착 · 09/23 출발').addTo(map);
+
+// 호텔
+hotels.forEach(h => {
+  const active = typeof h.no === 'number';
+  L.marker([h.lat, h.lng], {
+    icon: createIcon(h.no, active?h.color:'#999'), opacity: active?1:0.5
+  }).bindPopup(`<b>${active?'🏨':'❌'} ${h.name}</b><br>📅 ${h.from} → ${h.to}<br><span style="color:${h.color}">${h.note}</span>`).addTo(map);
+});
+
+// 동선
+L.polyline(hotels.filter(h=>typeof h.no==='number').map(h=>[h.lat,h.lng]), {
+  color: '#e74c3c', weight: 3, opacity: 0.5, dashArray: '8 6'
+}).addTo(map);
+
+// 범례
+L.control({position:'topright'}).onAdd = function() {
+  const d = L.DomUtil.create('div','legend');
+  d.innerHTML = '<h3>💒 발리 결혼여행 2026.09.14~24</h3><div style="font-size:11px;color:#888;margin-bottom:8px;">✈️ 인천 ↔ 발리 · 10박 11일</div>' +
+    hotels.map(h => `<div style="${typeof h.no!='number'?'text-decoration:line-through;color:#999;':''}"><span class="dot" style="background:${h.color}"></span><b>${typeof h.no==='number'?h.no+'. ':''}${h.name}</b> ${h.from}~${h.to}<br><small style="margin-left:16px;color:#666">${h.note}</small></div>`).join('');
+  return d;
+}.addTo(map);
+
+L.control({position:'bottomleft'}).onAdd = function() {
+  const d = L.DomUtil.create('div','route-info');
+  d.innerHTML = '🔴 점선 = 이동 동선 · 마커 클릭 = 상세정보';
+  return d;
+}.addTo(map);
+</script>
+</body>
+</html>
