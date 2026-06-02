@@ -694,8 +694,8 @@ function downloadHTML() {
     'function mk(lat,lng,color,label,opacity){var d=document.createElement("div");d.style.cssText="background:white;border:3px solid "+color+";border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:"+color+";box-shadow:0 2px 8px rgba(0,0,0,0.3);opacity:"+(opacity||1);d.textContent=label;return new google.maps.marker.AdvancedMarkerElement({map:gMap,position:{lat:lat,lng:lng},content:d});}',
     'function cd(l1,ln1,l2,ln2){var R=6371,dL=(l2-l1)*Math.PI/180,dLn=(ln2-ln1)*Math.PI/180,a=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dLn/2)*Math.sin(dLn/2);return(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))).toFixed(1)+" km";}',
     'function initMap(){',
-    '  gMap=new google.maps.Map(document.getElementById("map"),{center:{lat:'+cx+',lng:'+cy+'},zoom:'+zoom+',mapId:"'+
-    '  '+fbCode+';'++mapId+'",mapTypeControl:true,streetViewControl:false});',
+    '  gMap=new google.maps.Map(document.getElementById("map"),{center:{lat:'+cx+',lng:'+cy+'},zoom:'+zoom+',mapId:"'+mapId+'",mapTypeControl:true,streetViewControl:false});'+
+    '  '+fbCode+';',
     '  gIw=new google.maps.InfoWindow();',
     '  hotels.forEach(function(h,i){var m=mk(h.lat,h.lng,h.color,(i+1)+"",1);m.addListener("click",function(){gIw.setContent("<b>🏨 "+h.name+"</b><br>📅 "+h.date);gIw.open({map:gMap,anchor:m});});});',
     '  stops.forEach(function(p,i){var m=mk(p.lat,p.lng,p.color,(i+1)+"",1);m.addListener("click",function(){gIw.setContent("<b>"+(p.emoji||"📍")+" "+(i+1)+". "+p.name+"</b>");gIw.open({map:gMap,anchor:m});});});',
