@@ -172,12 +172,19 @@ function goStep(n) {
   } else {
     document.getElementById('mapContainer').style.display = 'none';
   }
-  // 2단계로 돌아갈 때 이전 결과 초기화
+  // 2단계로 돌아갈 때 AI 결과 표시만 초기화 (데이터는 유지)
   if (n === 2) {
-    parsedData = { hotels: [], stops: [] };
+    document.getElementById('aiStatus').innerHTML = '';
+    document.getElementById('aiResult').style.display = 'none';
+    document.getElementById('fileInfo').textContent = '';
     var bb = document.getElementById('buildBtn');
-    bb.disabled = true;
-    bb.textContent = '🗺️ 맵 만들기';
+    if (parsedData.hotels.length > 0) {
+      bb.disabled = false;
+      bb.textContent = '🗺️ 맵 만들기';
+    } else {
+      bb.disabled = true;
+      bb.textContent = '🗺️ 맵 만들기';
+    }
   }
 }
 
@@ -203,6 +210,12 @@ function handleFile(event) {
   var file = event.target.files[0];
   var fileInfo = document.getElementById('fileInfo');
   if (!file) return;
+  
+  // 이전 분석 결과 초기화
+  document.getElementById('aiStatus').innerHTML = '';
+  document.getElementById('aiResult').style.display = 'none';
+  parsedData = { hotels: [], stops: [] };
+  
   fileInfo.textContent = '⏳ ' + file.name + ' 분석 중...';
   
   var ext = file.name.split('.').pop().toLowerCase();
