@@ -118,7 +118,7 @@ stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</t
   <div id="parseStatus"></div>
   <div class="btn-row">
     <button class="btn btn-outline" onclick="goStep(1)">← 이전</button>
-    <button class="btn btn-primary" id="buildBtn" onclick="generateMap()">🗺️ 맵 만들기</button>
+    <button class="btn btn-primary" id="buildBtn" onclick="generateMap()" disabled>🗺️ 맵 만들기</button>
   </div>
 </div>
 
@@ -145,6 +145,14 @@ var DEFAULT_KEY = 'AIzaSy…ws3Y';
 var DEFAULT_MAPID = 'DEMO_MAP_ID';
 var gMap = null, gIw = null, gAllLines = [], gRtLines = [], gActiveNode = null;
 
+// 페이지 로드 초기화: 맵 만들기 버튼 비활성화
+(function(){
+  setTimeout(function(){
+    var bb = document.getElementById('buildBtn');
+    if (bb) { bb.disabled = true; bb.textContent = '🗺️ 맵 만들기'; }
+  }, 100);
+})();
+
 // ═══════════════════════════════════════════
 // Navigation
 // ═══════════════════════════════════════════
@@ -163,6 +171,13 @@ function goStep(n) {
     setTimeout(function(){ renderMapInContainer(); }, 300);
   } else {
     document.getElementById('mapContainer').style.display = 'none';
+  }
+  // 2단계로 돌아갈 때 이전 결과 초기화
+  if (n === 2) {
+    parsedData = { hotels: [], stops: [] };
+    var bb = document.getElementById('buildBtn');
+    bb.disabled = true;
+    bb.textContent = '🗺️ 맵 만들기';
   }
 }
 
@@ -478,6 +493,12 @@ var aiParsedData = null;
 
 async function aiParseFromText(rawText) {
   if (!rawText) return;
+  
+  // 맵 만들기 버튼 비활성화
+  var buildBtn = document.getElementById('buildBtn');
+  buildBtn.disabled = true;
+  buildBtn.textContent = '⏳ AI 분석 중...';
+  
   var combinedText = rawText;
   // Also include textarea content
   var ta = document.getElementById('textInput');
@@ -579,6 +600,7 @@ ${combinedText}`;
     
     parsedData = { hotels: hotels, stops: stops };
     document.getElementById('buildBtn').disabled = false;
+    document.getElementById('buildBtn').textContent = '🗺️ 맵 만들기';
     if (document.getElementById('fileInfo')) document.getElementById('fileInfo').textContent += ' ✅ 완료';
     
     statusEl.innerHTML = '<div class="status ok">✅ 분석 완료! (경비 항목 자동 제외됨)</div>';
@@ -590,6 +612,9 @@ ${combinedText}`;
   } catch(e) {
     statusEl.innerHTML = '<div class="status err">❌ 분석 실패: ' + e.message + '</div>';
     console.error('AI parse error:', e);
+    var bb = document.getElementById('buildBtn');
+    bb.disabled = true;
+    bb.textContent = '🗺️ 맵 만들기';
   }
   
 }
