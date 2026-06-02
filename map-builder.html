@@ -124,8 +124,14 @@ stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</t
 
   <!-- Tab: AI Parse -->
   <div class="tab-content" id="tab-ai">
-    <p style="font-size:13px;color:#555;margin-bottom:8px">✏️ 여행 일정이나 메모를 <b>자유롭게</b> 붙여넣으세요. AI가 장소·날짜·좌표를 자동 추출합니다.</p>
-    <textarea id="aiInput" placeholder="예시)&#10;&#10;9월 14일 인천에서 발리로 출발. 첫날은 공항 근처 노보텔 발리에서 1박.&#10;9월 15일 아침 체크아웃하고 가루다 위스누 꾸짜나 구경한 뒤 타나바락 절벽 들렀다가 우붓의 카욘밸리 리조트로 이동 (3박).&#10;9월 18일 짐바란의 아야나 리조트로 옮겨서 3박.&#10;9월 21일 같은 단지 아야나 빌라스로 이동 (2박).&#10;9월 23일 꾸타의 알로프트 발리로 이동, 마지막 날 공항 가까이에서 1박.&#10;중간에 페레레난 에어비앤비 예약했는데 취소함.&#10;&#10;이런 식으로 아무렇게나 써도 돼요!" style="min-height:180px"></textarea>
+    <p style="font-size:13px;color:#555;margin-bottom:8px">✏️ 여행 일정 텍스트를 붙여넣거나 <b>엑셀/CSV 파일</b>을 올리세요. AI가 장소·날짜·좌표를 자동 추출하고, 경비 항목은 알아서 제외합니다.</p>
+    <div class="upload-zone" id="aiDropZone" style="margin-bottom:8px;padding:12px" onclick="document.getElementById('aiFileInput').click()">
+      <div style="font-size:18px">📎</div>
+      <div style="font-size:12px;color:#888">엑셀 파일을 여기에 드래그하세요 (경비+일정 혼합 OK)</div>
+      <div class="file-info" id="aiFileInfo"></div>
+      <input type="file" id="aiFileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleAiFile(event)">
+    </div>
+    <textarea id="aiInput" placeholder="또는 여기에 여행 일정을 자유롭게 적으세요.&#10;경비 정보가 섞여있어도 AI가 알아서 장소만 골라냅니다.&#10;&#10;예시)&#10;9월 14일 인천→발리, 노보텔 1박, 항공요금 46만원&#10;9월 15일 가루다 위스누 구경, 우붓 카욘밸리 3박&#10;..." style="min-height:140px"></textarea>
     <button class="btn btn-primary" id="aiBtn" onclick="aiParse()" style="margin-top:8px">🤖 AI로 분석하기</button>
     <div id="aiStatus" style="margin-top:8px"></div>
     <div id="aiResult" style="margin-top:8px;display:none">
@@ -544,43 +550,93 @@ function resetMapFilter() {
 }
 
 // ═══════════════════════════════════════════
-// AI Parsing (Gemini)
+// AI Parsing (DeepSeek V4 Pro)
 // ═══════════════════════════════════════════
 var DEEPSEEK_KEY = 'sk-16cb0e576b524bcda329f1d3489b941f';
 var aiParsedData = null;
 
+function handleAiFile(event) {
+  var f = event.target.files[0]; if (!f) return;
+  document.getElementById('aiFileInfo').textContent = f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
+  readFileAsText(f, function(txt){ aiFileContent = txt; });
+}
+(function(){
+  var dz = document.getElementById('aiDropZone'); if (!dz) return;
+  dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.style.borderColor='#2196F3'; });
+  dz.addEventListener('dragleave', function(e){ dz.style.borderColor='#ccc'; });
+  dz.addEventListener('drop', function(e){
+    e.preventDefault(); dz.style.borderColor='#ccc';
+    var f = e.dataTransfer.files[0]; if (!f) return;
+    document.getElementById('aiFileInfo').textContent = f.name + ' (' + (f.size/1024).toFixed(1) + ' KB)';
+    readFileAsText(f, function(txt){ aiFileContent = txt; });
+  });
+})();
+function readFileAsText(file, cb) {
+  var ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') {
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var wb = XLSX.read(e.target.result, {type:'array'});
+        var allText = [];
+        wb.SheetNames.forEach(function(sn){
+          var ws = wb.Sheets[sn];
+          var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+          rows.forEach(function(r){ if (Array.isArray(r)) allText.push(r.join('\t')); });
+        });
+        cb(allText.join('\n'));
+      } catch(err) { cb(''); }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    var reader = new FileReader();
+    reader.onload = function(e){ cb(e.target.result); };
+    reader.readAsText(file);
+  }
+}
 async function aiParse() {
   var text = document.getElementById('aiInput').value.trim();
-  if (!text) { alert('분석할 여행 텍스트를 입력해주세요.'); return; }
+  var fileText = aiFileContent || '';
+  if (!text && !fileText) { alert('분석할 텍스트를 입력하거나 엑셀 파일을 업로드해주세요.'); return; }
+  var combinedText = (text ? text + '\n\n' : '') + fileText;
   
   var btn = document.getElementById('aiBtn');
   var statusEl = document.getElementById('aiStatus');
   var resultEl = document.getElementById('aiResult');
   
   btn.disabled = true; btn.textContent = '⏳ 분석 중...';
-  statusEl.innerHTML = '<div class="status ok">🤖 AI가 여행 일정을 분석하고 있습니다...</div>';
+  statusEl.innerHTML = '<div class="status ok">🤖 AI가 데이터를 분석하고 있습니다 (경비 항목은 자동 제외)...</div>';
   resultEl.style.display = 'none';
   
   try {
-    var prompt = `You are a travel data parser. Extract ALL locations mentioned in this travel itinerary text. For each location, determine if it's a "hotel" (accommodation) or "stop" (sightseeing spot, stopover).
+    var prompt = `You are a travel data parser. Analyze the following travel planning data which may contain a MIX of:
+- Actual locations/places (hotels, resorts, sightseeing spots, airports)
+- Expense items (flight costs, insurance, ticketing fees, food costs, etc.)
+- Notes, dates, prices, and other non-location information
 
-For each location, provide:
-- type: "hotel" or "stop"
-- name: location name
-- lat: latitude (decimal, use your knowledge of world geography to estimate if not given)
-- lng: longitude (decimal)
-- date: dates mentioned for this location (e.g. "09/14-15" or "day 2")
-- note: any extra context (e.g. "near airport", "cancelled")
-- nid: a unique ID like "n1", "n2" etc.
+YOUR JOB: Extract ONLY real-world LOCATIONS that can be shown on a map. IGNORE all expense items and non-location data.
 
-IMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation. Format:
-[{"type":"hotel","name":"...","lat":...,"lng":...,"date":"...","note":"...","nid":"n1"},...]
+Rules:
+1. ONLY extract physical places: hotels, resorts, villas, Airbnbs, landmarks, temples, beaches, airports, viewpoints
+2. DO NOT extract: expense categories (airfare, insurance, food), payment amounts, non-place names
+3. If a row looks like a cost item, SKIP IT. If it looks like a hotel/place, INCLUDE IT.
+4. The data may be in tab-separated format (spreadsheet cells). Look for location names in the text.
+5. Use your knowledge of world geography to estimate coordinates for each place.
 
-The locations should be in chronological order as they appear in the itinerary.
-If a location is cancelled, include it but add cancelled:true.
+For each extracted location:
+- type: "hotel" (accommodation) or "stop" (sightseeing/airport/landmark)
+- name: clean name only, no prices or codes
+- lat: latitude (-90 to 90)
+- lng: longitude (-180 to 180)
+- date: dates mentioned, e.g. "09/14-15"
+- note: brief context (e.g. "near airport", "cancelled")
+- nid: "n1", "n2" etc. in chronological order
 
-Travel itinerary text:
-${text}`;
+CRITICAL: Return ONLY a valid JSON array. No markdown, no explanation. Every lat/lng MUST be valid coordinates.
+Format: [{"type":"hotel","name":"...","lat":...,"lng":...,"date":"...","note":"...","nid":"n1"},...]
+
+Data to analyze:
+${combinedText}`;
 
     var resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
@@ -634,11 +690,11 @@ ${text}`;
       }
     });
     
-    if (hotels.length === 0) throw new Error('추출된 장소가 없습니다');
+    if (hotels.length === 0) throw new Error('추출된 장소가 없습니다. 여행 일정에 장소(호텔/관광지)가 포함되어 있는지 확인해주세요.');
     
     aiParsedData = { hotels: hotels, stops: stops };
     
-    statusEl.innerHTML = '<div class="status ok">✅ 분석 완료!</div>';
+    statusEl.innerHTML = '<div class="status ok">✅ 분석 완료! (경비 항목 자동 제외됨)</div>';
     document.getElementById('aiSummary').innerHTML = 
       '🏨 숙소 ' + hotels.length + '개: ' + hotels.map(function(h){return h.name;}).join(', ') + '<br>' +
       '📍 경유지 ' + stops.length + '개: ' + stops.map(function(s){return s.name;}).join(', ');
