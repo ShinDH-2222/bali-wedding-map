@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.7</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.8</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -313,7 +313,7 @@ function generateMap() {
 
 function renderMapInContainer() {
   var key = DEFAULT_KEY;
-  var mapId = DEFAULT_MAPID;
+  var mapId = null; // removed for tile fix
   var container = document.getElementById('mapContainer');
   container.innerHTML = '<div id="travelMap" style="width:100%;height:100%;min-height:400px"></div>';
   
@@ -361,7 +361,7 @@ function renderMapInContainer() {
   window._travelMapCfg = {
     hotels: h.filter(function(x){ return !x.cancelled; }),
     stops: s.filter(function(x){ return !x.cancelled; }), title: title, subtitle: subtitle,
-    center: {lat: cx, lng: cy}, zoom: zoom, mapId: mapId
+    center: {lat: cx, lng: cy}, zoom: zoom
   };
 }
 
@@ -377,8 +377,7 @@ function onMapsLoaded() {
   
   gMap = new google.maps.Map(document.getElementById('travelMap'), {
     center: cfg.center, zoom: cfg.zoom,
-    mapId: cfg.mapId,
-    mapTypeControl: true, streetViewControl: false
+    mapTypeControl: true, streetViewControl: false, mapTypeId: 'roadmap'
   });
   gIw = new google.maps.InfoWindow();
   
@@ -690,7 +689,7 @@ function applyAiResult() {
 // ═══════════════════════════════════════════
 function downloadHTML() {
   var key = DEFAULT_KEY;
-  var mapId = DEFAULT_MAPID;
+  var mapId = null; // removed for tile fix
   var title = document.getElementById('tripTitle').value.trim() || '여행 동선';
   var subtitle = document.getElementById('tripSubtitle').value.trim() || '';
   var h = parsedData.hotels.filter(function(x){ return !x.cancelled; }),
@@ -736,7 +735,7 @@ function downloadHTML() {
     'function mk(lat,lng,color,label,opacity){var d=document.createElement("div");d.style.cssText="background:white;border:3px solid "+color+";border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:"+color+";box-shadow:0 2px 8px rgba(0,0,0,0.3);opacity:"+(opacity||1);d.textContent=label;return new google.maps.marker.AdvancedMarkerElement({map:gMap,position:{lat:lat,lng:lng},content:d});}',
     'function cd(l1,ln1,l2,ln2){var R=6371,dL=(l2-l1)*Math.PI/180,dLn=(ln2-ln1)*Math.PI/180,a=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dLn/2)*Math.sin(dLn/2);return(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))).toFixed(1)+" km";}',
     'function initMap(){',
-    '  gMap=new google.maps.Map(document.getElementById("map"),{center:{lat:'+cx+',lng:'+cy+'},zoom:'+zoom+',mapId:"'+mapId+'",mapTypeControl:true,streetViewControl:false});'+
+    '  gMap=new google.maps.Map(document.getElementById("map"),{center:{lat:'+cx+',lng:'+cy+'},zoom:'+zoom+',mapTypeControl:true,streetViewControl:false});'+
     '  '+fbCode+';',
     '  gIw=new google.maps.InfoWindow();',
     '  hotels.forEach(function(h,i){var m=mk(h.lat,h.lng,h.color,(i+1)+"",1);m.addListener("click",function(){gIw.setContent("<b>🏨 "+h.name+"</b><br>📅 "+h.date);gIw.open({map:gMap,anchor:m});});});',
