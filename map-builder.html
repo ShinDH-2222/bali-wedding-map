@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.8</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.9</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -377,7 +377,7 @@ function onMapsLoaded() {
   
   gMap = new google.maps.Map(document.getElementById('travelMap'), {
     center: cfg.center, zoom: cfg.zoom,
-    mapTypeControl: true, streetViewControl: false, mapTypeId: 'roadmap'
+    mapTypeControl: true, streetViewControl: false
   });
   gIw = new google.maps.InfoWindow();
   
