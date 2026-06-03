@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.1</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.2</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -502,17 +502,55 @@ function mk(lat, lng, color, label, opacity) {
   return new google.maps.marker.AdvancedMarkerElement({map:gMap, position:{lat:lat, lng:lng}, content:d});
 }
 
+function parseDayNumber(dateStr) {
+  if (!dateStr) return 999;
+  var s = String(dateStr);
+  var m = s.match(/(\d+)\s*일차/); if (m) return parseInt(m[1]);
+  m = s.match(/Day\s*(\d+)/i); if (m) return parseInt(m[1]);
+  m = s.match(/^(\d+)\s*일/); if (m) return parseInt(m[1]);
+  m = s.match(/^(\d+)/); if (m) return parseInt(m[1]);
+  return 999;
+}
+
 function buildDynamicLegend(cfg) {
-  var items = [], routeIdx = 0;
-  
+  // Pre-compute hotel-to-hotel routes
+  var hotelRoutes = {};
   cfg.hotels.forEach(function(h, i){
     var rts = [];
-    if (i > 0) rts.push(routeIdx - 1); // incoming route
-    if (i < cfg.hotels.length - 1) { rts.push(routeIdx); routeIdx++; } // outgoing route
-    items.push({id: 'n'+h.nid.replace(/^n/,''), no: (i+1)+'', name: h.name, color: h.color, date: h.date, isHotel: true, routes: rts});
+    if (i > 0) rts.push(i - 1);
+    if (i < cfg.hotels.length - 1) rts.push(i);
+    hotelRoutes[i] = rts;
   });
+  // Pre-compute road trip routes (each stop gets incoming + outgoing)
+  var stopRoutes = {};
   cfg.stops.forEach(function(p, i){
-    items.push({id: p.nid, no: (i+1)+'', name: p.name, color: p.color, date: p.date||p.emoji, isHotel: false, routes: gRtLines.length > 0 ? ['rt'+i] : []});
+    var rts = [];
+    if (gRtLines.length > 0) {
+      rts.push('rt' + i);
+      if (i + 1 < gRtLines.length) rts.push('rt' + (i + 1));
+    }
+    stopRoutes[i] = rts;
+  });
+  
+  // Merge hotels + stops, sort by day number
+  var merged = [];
+  cfg.hotels.forEach(function(h, i){ merged.push({name:h.name,color:h.color,date:h.date,isHotel:true,idx:i,emoji:''}); });
+  cfg.stops.forEach(function(s, i){ merged.push({name:s.name,color:s.color,date:s.date||s.emoji,isHotel:false,idx:i,emoji:s.emoji||'📍'}); });
+  merged.sort(function(a, b){ return parseDayNumber(a.date) - parseDayNumber(b.date); });
+  
+  // Build legend items with sequential numbers
+  var items = [];
+  merged.forEach(function(x, seq){
+    var routes = x.isHotel ? (hotelRoutes[x.idx] || []) : (stopRoutes[x.idx] || []);
+    items.push({
+      no: (seq + 1) + '',
+      name: x.name,
+      color: x.color,
+      date: x.date,
+      emoji: x.emoji,
+      isHotel: x.isHotel,
+      routes: routes
+    });
   });
   
   var isMobile = window.innerWidth < 768;
@@ -524,9 +562,10 @@ function buildDynamicLegend(cfg) {
   html += '<b>🏨 클릭시 경로 하이라이트</b><br>';
   
   items.forEach(function(it){
+    var icon = it.isHotel ? '🏨 ' : (it.emoji + ' ');
     html += '<div class="legend-item" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'">';
     html += '<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:'+it.color+'"></span>';
-    html += '<b>'+it.no+'. '+it.name+'</b> '+it.date+'</div>';
+    html += '<b>'+icon+it.no+'. '+it.name+'</b> '+it.date+'</div>';
   });
   
   html += '</div></div>';
