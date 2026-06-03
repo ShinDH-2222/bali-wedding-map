@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.4</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.5</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -410,8 +410,6 @@ function onMapsLoaded() {
   cfg.hotels.forEach(function(h, i){ ml.push({h:true, ix:i, d:h.date, n:h.name, lat:h.lat, lng:h.lng, c:h.color}); });
   cfg.stops.forEach(function(s, i){ ml.push({h:false, ix:i, d:s.date||s.emoji, n:s.name, lat:s.lat, lng:s.lng, c:s.color, e:s.emoji||'📍'}); });
   ml.sort(function(a, b){ return parseDayNumber(a.d) - parseDayNumber(b.d); });
-  var hl={}, sl={};
-  ml.forEach(function(x, seq){ if(x.h) hl[x.ix]=(seq+1)+''; else sl[x.ix]=(seq+1)+''; });
   
   gMap = new google.maps.Map(document.getElementById('travelMap'), {
     center: cfg.center, zoom: cfg.zoom,
@@ -420,33 +418,36 @@ function onMapsLoaded() {
   });
   gIw = new google.maps.InfoWindow();
   
-  // Hotel markers
+  // Unified marker creation from merged list (same-address clustering)
   var usedCoords = [];
-  cfg.hotels.forEach(function(h, i){
-    if (h.cancelled) return;
-    var lat = h.lat, lng = h.lng;
+  ml.forEach(function(x, seq){
+    var label = (seq + 1) + '';
+    var lat = x.lat, lng = x.lng;
+    // Cluster same-location markers with small diagonal offset
     for (var k = 0; k < usedCoords.length; k++) {
       if (Math.abs(usedCoords[k].lat - lat) < 0.001 && Math.abs(usedCoords[k].lng - lng) < 0.001) {
-        lat += 0.002 * (k + 1);
+        lat += 0.00035 * (k + 1);
+        lng += 0.00035 * (k + 1);
       }
     }
     usedCoords.push({lat: lat, lng: lng});
-    var label = hl[i] || (i+1)+'';
-    var m = mk(lat, lng, h.color, h.cancelled ? '✕' : label, h.cancelled ? 0.5 : 1);
-    m.addListener('click', function(){
-      gIw.setContent('<b>🏨 ' + h.name + '</b><br>📅 ' + h.date + (h.note ? '<br><span style="color:'+h.color+'">'+h.note+'</span>' : ''));
-      gIw.open({map:gMap, anchor:m});
-    });
-  });
-  
-  // Stop markers
-  cfg.stops.forEach(function(p, i){
-    var label = sl[i] || p.no;
-    var m = mk(p.lat, p.lng, p.color, label, 1);
-    m.addListener('click', function(){
-      gIw.setContent('<b>' + (p.emoji||'📍') + ' ' + label + '. ' + p.name + '</b>' + (p.date ? '<br>' + p.date : ''));
-      gIw.open({map:gMap, anchor:m});
-    });
+    
+    if (x.h) {
+      var h = cfg.hotels[x.ix];
+      if (h.cancelled) return;
+      var m = mk(lat, lng, h.color, h.cancelled ? '✕' : label, h.cancelled ? 0.5 : 1);
+      m.addListener('click', function(){
+        gIw.setContent('<b>🏨 ' + h.name + '</b><br>📅 ' + h.date + (h.note ? '<br><span style="color:'+h.color+'">'+h.note+'</span>' : ''));
+        gIw.open({map:gMap, anchor:m});
+      });
+    } else {
+      var p = cfg.stops[x.ix];
+      var m2 = mk(lat, lng, p.color, label, 1);
+      m2.addListener('click', function(){
+        gIw.setContent('<b>' + (p.emoji||'📍') + ' ' + label + '. ' + p.name + '</b>' + (p.date ? '<br>' + p.date : ''));
+        gIw.open({map:gMap, anchor:m2});
+      });
+    }
   });
   
   // Build continuous route through merged order (one path, no gaps)
@@ -801,9 +802,10 @@ async function aiRecommend() {
 2. 호텔은 예산에 맞게 선택하세요.
 3. 액티비티는 여행 테마에 맞게 구성하세요.
 4. 날짜 순서로 정렬하세요 (첫날부터).
-5. 하루에 관광지/맛집 1~2곳을 포함하세요.
-6. 호텔 이름에 지역/구 정보를 포함하세요 (예: "OO호텔 (몽마르트)", "△△리조트-7구"). 같은 체인 호텔도 지역으로 구분하세요.
-7. type="hotel"은 숙소, type="stop"은 관광지/맛집입니다.
+5. 🚫 동선 낭비 금지: 같은 지역/건물의 장소는 반드시 연속된 날짜에 배치하세요. A지역→B지역→다시 A지역 같은 비효율 이동은 절대 금지. 지도에 그렸을 때 최단거리로 이어지도록 구성하세요.
+6. 하루에 관광지/맛집 1~2곳을 포함하세요.
+7. 호텔 이름에 지역/구 정보를 포함하세요 (예: "OO호텔 (몽마르트)", "△△리조트-7구"). 같은 체인 호텔도 지역으로 구분하세요.
+8. type="hotel"은 숙소, type="stop"은 관광지/맛집입니다.
 
 [출력 형식]
 반드시 아래 JSON 형식으로만 응답하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.
