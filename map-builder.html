@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v4.2</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v4.3</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -482,16 +482,16 @@ function buildDynamicLegend(cfg) {
     items.push({id: p.nid, no: (i+1)+'', name: p.name, color: p.color, date: p.date||p.emoji, isHotel: false, routes: gRtLines.length > 0 ? ['rt'+i] : []});
   });
   
-  var html = '<div class="legend-wrap" style="background:rgba(255,255,255,0.95);border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,0.18);font-size:13px;line-height:1.8;min-width:240px;max-width:340px;overflow:hidden">';
-  html += '<div class="legend-header" style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center"><div><b>💒 '+cfg.title+'</b><div style="font-size:11px;color:#888">'+cfg.subtitle+'</div></div></div>';
-  html += '<div class="legend-body" style="padding:0 14px 12px">';
-  html += '<div class="reset-btn" style="background:#eee;border:none;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;margin-bottom:6px" onclick="resetMapFilter()">🔄 전체보기</div>';
+  var isMobile = window.innerWidth < 768;
+  
+  var html = '<div class="legend-wrap" style="background:rgba(255,255,255,0.95);border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,0.18);font-size:13px;line-height:1.8;min-width:200px;max-width:320px;overflow:hidden;transition:all 0.3s">';
+  html += '<div class="legend-header" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:#f8f8f8;border-bottom:1px solid #eee;user-select:none"><div><b>💒 '+cfg.title+'</b><div style="font-size:11px;color:#888">'+cfg.subtitle+'</div></div><span class="legend-arrow" style="font-size:16px;transition:transform 0.3s">'+(isMobile?'\u25b6':'\u25bc')+'</span></div>';
+  html += '<div class="legend-body" style="padding:0 14px 12px;display:'+(isMobile?'none':'block')+'">';
+  html += '<button class="reset-btn" style="background:#eee;border:none;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;margin-bottom:6px">🔄 전체보기</button>';
   html += '<b>🏨 클릭시 경로 하이라이트</b><br>';
   
   items.forEach(function(it){
-    var c = it.routes.length > 0 ? 'legend-item' : '';
-    var s = it.isHotel ? '' : ' style="font-size:12px;color:#666"';
-    html += '<div class="'+c+'" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'" onclick="filterByNode(this,['+it.routes.join(',')+'])">';
+    html += '<div class="legend-item" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'">';
     html += '<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:'+it.color+'"></span>';
     html += '<b>'+it.no+'. '+it.name+'</b> '+it.date+'</div>';
   });
@@ -499,8 +499,60 @@ function buildDynamicLegend(cfg) {
   html += '</div></div>';
   
   var div = document.createElement('div');
+  div.className = 'legend-container';
   div.innerHTML = html;
   div.style.marginTop = '10px';
+  
+  // 접기/펴기 (헤더 클릭)
+  div.querySelector('.legend-header').addEventListener('click', function(){
+    var body = div.querySelector('.legend-body');
+    var arrow = div.querySelector('.legend-arrow');
+    if (body.style.display === 'none') {
+      body.style.display = 'block';
+      arrow.textContent = '\u25bc';
+    } else {
+      body.style.display = 'none';
+      arrow.textContent = '\u25b6';
+    }
+  });
+  
+  // 전체보기 버튼
+  div.querySelector('.reset-btn').addEventListener('click', function(e){
+    e.stopPropagation();
+    resetMapFilter();
+  });
+  
+  // 범례 아이템 클릭 필터 (이벤트 위임 - onclick 제거, CSP 대응)
+  div.querySelectorAll('.legend-item').forEach(function(el){
+    el.addEventListener('click', function(e){
+      e.stopPropagation();
+      var rids = el.getAttribute('data-rids').split(',').map(function(x){
+        var v = x.trim();
+        if (!v) return null;
+        return v.slice(0,2) === 'rt' ? v : parseInt(v);
+      }).filter(function(x){ return x !== null && !isNaN(x); });
+      if (rids.length === 0) return;
+      
+      if (gActiveNode === el) { resetMapFilter(); return; }
+      var prev = document.querySelector('.legend-item.active');
+      if (prev) { prev.classList.remove('active'); prev.style.background = ''; }
+      gActiveNode = el;
+      el.classList.add('active');
+      el.style.background = '#cce5ff';
+      
+      gAllLines.forEach(function(l){
+        var ok = false;
+        rids.forEach(function(rid){
+          if (typeof rid === 'number' && l._idx === rid) ok = true;
+          if (typeof rid === 'string' && rid.slice(0,2) === 'rt') {
+            var si = parseInt(rid.slice(2));
+            if (gRtLines[si] && l === gRtLines[si]) ok = true;
+          }
+        });
+        l.setOptions({strokeOpacity: ok ? 0.85 : 0.10});
+      });
+    });
+  });
   
   gMap.controls[google.maps.ControlPosition.RIGHT_TOP].push(div);
 }
