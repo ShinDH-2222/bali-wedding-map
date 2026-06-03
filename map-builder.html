@@ -564,37 +564,27 @@ async function aiParseFromText(rawText) {
   resultEl.style.display = 'none';
   
   try {
-    var prompt = `You are a travel data parser. Analyze the following travel planning data which may contain a MIX of:
-- Actual locations/places (hotels, resorts, sightseeing spots, airports)
-- Expense items (flight costs, insurance, ticketing fees, food costs, etc.)
-- Notes, dates, prices, and other non-location information
+    var prompt = `You are a travel data parser. Analyze travel planning data. Extract ONLY real-world LOCATIONS.
 
-YOUR JOB: Extract ONLY real-world LOCATIONS that can be shown on a map. IGNORE all expense items and non-location data.
+CRITICAL RULES:
+1. Only extract physical PLACES: hotels, resorts, villas, Airbnbs, landmarks, temples, beaches, airports
+2. STRICTLY EXCLUDE expense items - if a row has prices (₩, $, 원, 10만원), cost categories (항공료, 식비, 보험), or looks like accounting data → SKIP IT
+3. "hotel" = accommodation where you sleep. "stop" = sightseeing/airport/landmark.
+4. Sort by date ASCENDING (earliest first).
+5. DO NOT invent fictional places. Only use locations actually mentioned.
+6. Cancelled hotels: include with cancelled:true
 
-TYPE CLASSIFICATION (IMPORTANT - get this right):
-- "hotel" = accommodation: hotels, resorts, villas, Airbnb, guesthouses, ryokans, hostels, any place where you SLEEP/STAY overnight
-- "stop" = non-accommodation: airports, temples, beaches, landmarks, viewpoints, restaurants, shopping areas, sightseeing spots
+For each location:
+- type: "hotel" or "stop"
+- name: clean name, no prices/booking codes
+- lat, lng: coordinates
+- date: original date range as-is (will be converted)
+- nid: "n1","n2"... in date order
 
-EXTRACTION RULES:
-1. ONLY extract physical places: hotels, resorts, villas, Airbnbs, landmarks, temples, beaches, airports, viewpoints
-2. DO NOT extract: expense categories (airfare, insurance, food), payment amounts, non-place names
-3. If a row looks like a cost item, SKIP IT. If it looks like a hotel/place, INCLUDE IT.
-4. If a name contains words like "hotel", "resort", "villa", "bnb", "guesthouse", "ryokan", "hostel", "motel" → it IS a "hotel"
-5. Chronological order, cancelled hotels should still be included with cancelled:true
+Return ONLY this JSON array:
+[{"type":"hotel","name":"...","lat":...,"lng":...,"date":"...","nid":"n1","cancelled":false},...]
 
-For each extracted location:
-- type: "hotel" or "stop" (as defined above)
-- name: clean name only, no prices, booking codes, or room numbers
-- lat: latitude (-90 to 90)
-- lng: longitude (-180 to 180)
-- date: dates mentioned, e.g. "09/14-15"
-- note: brief context (e.g. "near airport", "cancelled")
-- nid: "n1", "n2" etc. in chronological order (hotels and stops numbered together)
-
-IMPORTANT: Return ONLY a valid JSON array. No markdown, no explanation.
-Format: [{"type":"hotel","name":"...","lat":...,"lng":...,"date":"...","note":"...","nid":"n1"},...]
-
-Data to analyze:
+Data:
 ${combinedText}`;
 
     var resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
