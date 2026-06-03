@@ -835,7 +835,12 @@ async function aiRecommend() {
       })
     });
     
-    if (!resp.ok) throw new Error('API error ' + resp.status);
+    if (!resp.ok) {
+      var errText = await resp.text();
+      var errMsg = errText;
+      try { var e = JSON.parse(errText); errMsg = e.error?.message || errText; } catch(_) {}
+      throw new Error('API error ' + resp.status + ': ' + errMsg.slice(0,200));
+    }
     
     var data = await resp.json();
     var rawText = data.choices[0].message.content;
