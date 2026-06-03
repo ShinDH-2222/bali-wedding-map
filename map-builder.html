@@ -682,7 +682,7 @@ ${combinedText}`;
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + DEEPSEEK_KEY},
       body: JSON.stringify({
-        model: 'deepseek-v4-pro',
+        model: 'deepseek-chat',
         messages: [{role: 'user', content: prompt}],
         temperature: 0.1,
         max_tokens: 2048
@@ -700,6 +700,8 @@ ${combinedText}`;
     // JSON 추출 (```json ... ``` 또는 raw JSON)
     var jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/) || rawText.match(/(\[[\s\S]*\])/);
     var jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim();
+    // Sanitize common JSON errors (trailing commas etc)
+    jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
     var parsed = JSON.parse(jsonStr);
     
     if (!Array.isArray(parsed)) throw new Error('AI 응답이 배열이 아닙니다');
@@ -822,7 +824,7 @@ async function aiRecommend() {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + DEEPSEEK_KEY},
       body: JSON.stringify({
-        model: 'deepseek-v4-pro',
+        model: 'deepseek-chat',
         messages: [{role: 'user', content: prompt}],
         temperature: 0.7,
         max_tokens: 4096
@@ -837,6 +839,8 @@ async function aiRecommend() {
     // JSON 추출 (```json ... ``` 또는 raw JSON)
     var jsonMatch = rawText.match(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/) || rawText.match(/(\{[\s\S]*\})/);
     var jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim();
+    // Sanitize common JSON errors (trailing commas etc)
+    jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
     var result = JSON.parse(jsonStr);
     
     // briefing + itinerary 형식 처리
