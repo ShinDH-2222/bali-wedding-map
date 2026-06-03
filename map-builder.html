@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v4.1</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v4.2</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -631,6 +631,7 @@ ${combinedText}`;
         lat: parseFloat(p.lat) || 0,
         lng: parseFloat(p.lng) || 0,
         date: p.date || '',
+        rawDate: parseFloat(p.date) || 0, // for sorting
         color: autoColor(i),
         note: p.note || '',
         nid: p.nid || ('n'+(i+1)),
@@ -650,6 +651,21 @@ ${combinedText}`;
     });
     
     if (hotels.length === 0) throw new Error('추출된 장소가 없습니다. 여행 일정에 장소(호텔/관광지)가 포함되어 있는지 확인해주세요.');
+    
+    // 🔄 엑셀 시리얼 날짜 → 읽을 수 있는 날짜로 변환
+    hotels.forEach(function(h){
+      h.date = convertExcelDate(h.date);
+    });
+    stops.forEach(function(s){
+      s.date = convertExcelDate(s.date);
+    });
+    
+    // 📅 날짜 오름차순 정렬 (여행 순서대로)
+    hotels.sort(function(a, b){
+      return (a.rawDate || 999999) - (b.rawDate || 999999);
+    });
+    // 순서 재지정
+    hotels.forEach(function(h, i){ h.no = (i + 1) + ''; });
     
     parsedData = { hotels: hotels, stops: stops };
     document.getElementById('buildBtn').disabled = false;
@@ -683,6 +699,24 @@ function applyAiResult() {
   document.getElementById('buildBtn').disabled = false;
   // 바로 맵 생성
   generateMap();
+}
+
+// ═══════════════════════════════════════════
+// 엑셀 시리얼 날짜 → YYYY-MM-DD 변환
+// ═══════════════════════════════════════════
+function convertExcelDate(dateStr) {
+  if (!dateStr) return '';
+  // 이미 YYYY-MM-DD 형식이면 그대로 반환
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split(/[ T]/)[0];
+  // "46288.625-46289.5" 같은 시리얼 범위 변환
+  return String(dateStr).replace(/(\d{4,6}\.?\d*)/g, function(m){
+    var serial = parseFloat(m);
+    if (serial < 30000 || serial > 100000) return m;
+    var d = new Date((serial - 25569) * 86400000);
+    return d.getFullYear() + '-' +
+           String(d.getMonth() + 1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  });
 }
 
 // ═══════════════════════════════════════════
