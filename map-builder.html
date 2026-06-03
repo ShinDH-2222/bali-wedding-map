@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v4.3</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.0</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -77,46 +77,89 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 <!-- STEP 2: Data Input -->
 <div class="card" id="step2" style="display:none">
   <h2>📋 여행 데이터 입력</h2>
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('upload')">📁 파일 업로드</button>
-    <button class="tab-btn" onclick="switchTab('sample')">📋 샘플 데이터</button>
+
+  <!-- 파일 업로드 -->
+  <p style="font-size:13px;color:#555;margin-bottom:8px">📎 <b>엑셀, CSV, 텍스트 파일</b>을 올리면 AI가 장소·날짜·좌표를 자동 추출합니다. 경비 항목은 알아서 제외!</p>
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📁</div>
+    <div class="hint">클릭하여 파일 선택 (.xlsx, .csv, .txt)<br>또는 파일을 여기에 드래그하세요</div>
+    <div class="file-info" id="fileInfo"></div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleFile(event)">
+  </div>
+  <div id="aiStatus" style="margin-top:8px"></div>
+  <div id="aiResult" style="margin-top:8px;display:none">
+    <div class="status ok" id="aiSummary"></div>
+    <button class="btn btn-primary" onclick="applyAiResult()" style="margin-top:8px">✅ 이 데이터로 맵 만들기</button>
   </div>
 
-  <!-- Tab: Upload (AI auto-parse) -->
-  <div class="tab-content active" id="tab-upload">
-    <p style="font-size:13px;color:#555;margin-bottom:8px">📎 <b>엑셀, CSV, 텍스트 파일</b>을 올리거나 자유 텍스트를 붙여넣으세요. AI가 장소·날짜·좌표를 자동 추출합니다. 경비 항목은 알아서 제외!</p>
-    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-      <div class="icon">📁</div>
-      <div class="hint">클릭하여 파일 선택 (.xlsx, .csv, .txt)<br>또는 파일을 여기에 드래그하세요</div>
-      <div class="file-info" id="fileInfo"></div>
-      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleFile(event)">
+  <!-- 구분선 -->
+  <div style="display:flex;align-items:center;margin:20px 0;gap:12px">
+    <div style="flex:1;height:1px;background:#e0e0e0"></div>
+    <span style="font-size:12px;color:#999;white-space:nowrap">또는 AI에게 맡기기</span>
+    <div style="flex:1;height:1px;background:#e0e0e0"></div>
+  </div>
+
+  <!-- AI 여행 추천 -->
+  <div style="padding:16px;background:#f0f4ff;border-radius:12px;border:1.5px solid #d0d8f0">
+    <h3 style="margin:0 0 4px;font-size:15px">🤖 AI 맞춤 여행 추천</h3>
+    <p style="font-size:12px;color:#666;margin:0 0 12px">원하는 조건을 선택하면 AI가 맞춤 일정을 생성합니다</p>
+
+    <label style="font-size:13px;font-weight:600">🌍 가고 싶은 여행지</label>
+    <input type="text" id="aiDestination" placeholder="예: 발리, 도쿄, 파리, 제주도..." style="margin-bottom:12px">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label style="font-size:13px;font-weight:600">📅 일정</label>
+        <select id="aiDuration">
+          <option value="">선택하세요</option>
+          <option value="당일치기">☀️ 당일치기</option>
+          <option value="1박 2일">🌙 1박 2일</option>
+          <option value="2박 3일">🌙 2박 3일</option>
+          <option value="3박 4일">🌙 3박 4일</option>
+          <option value="4박 5일">🌙 4박 5일</option>
+          <option value="1주일">📆 1주일</option>
+          <option value="2주일">📆 2주일</option>
+          <option value="한 달 살기">🏠 한 달 살기</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600">👥 동행자</label>
+        <select id="aiCompanion">
+          <option value="">선택하세요</option>
+          <option value="나홀로 여행">🧍 나홀로 여행</option>
+          <option value="연인/부부">💑 연인 / 부부</option>
+          <option value="친구들과">👫 친구들과</option>
+          <option value="아이와 함께">👶 아이와 함께</option>
+          <option value="부모님과 함께(효도 여행)">👴 부모님과 함께 (효도 여행)</option>
+          <option value="비즈니스 파트너">💼 비즈니스 파트너</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600">🎯 여행 테마</label>
+        <select id="aiTheme">
+          <option value="">선택하세요</option>
+          <option value="신혼여행(허니문)">💍 신혼여행 (허니문)</option>
+          <option value="미식 탐방">🍽️ 미식 탐방</option>
+          <option value="쇼핑 중심">🛍️ 쇼핑 중심</option>
+          <option value="역사/문화 유적">🏛️ 역사 / 문화 유적</option>
+          <option value="호캉스">🏊 호캉스</option>
+          <option value="로컬 체험">🌿 로컬 체험</option>
+          <option value="예술/전시 관람">🎨 예술 / 전시 관람</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600">💰 예산</label>
+        <select id="aiBudget">
+          <option value="">선택하세요</option>
+          <option value="배낭여행">🎒 배낭여행 (게스트하우스, 로컬 맛집)</option>
+          <option value="스탠다드">⭐⭐⭐ 스탠다드 (3~4성급 호텔, 적당한 경비)</option>
+          <option value="프리미엄">👑 프리미엄 (5성급 럭셔리, 파인다이닝, 비즈니스)</option>
+        </select>
+      </div>
     </div>
-    <textarea id="textInput" placeholder="또는 여기에 여행 일정을 자유롭게 적으세요.&#10;경비 정보가 섞여있어도 AI가 알아서 장소만 골라냅니다.&#10;&#10;예시)&#10;9월 14일 인천→발리, 노보텔 1박, 항공요금 46만원&#10;9월 15일 가루다 위스누 구경, 우붓 카욘밸리 3박&#10;..." style="min-height:140px;margin-top:8px"></textarea>
-    <div id="aiStatus" style="margin-top:8px"></div>
-    <div id="aiResult" style="margin-top:8px;display:none">
-      <div class="status ok" id="aiSummary"></div>
-      <button class="btn btn-primary" onclick="applyAiResult()" style="margin-top:8px">✅ 이 데이터로 맵 만들기</button>
-    </div>
+
+    <button class="btn btn-primary" id="aiRecommendBtn" onclick="aiRecommend()" style="width:100%;margin-top:14px">✨ AI 맞춤 일정 추천받기</button>
   </div>
-
-
-
-  <!-- Tab: Sample -->
-  <div class="tab-content" id="tab-sample">
-    <p style="font-size:13px;color:#666;margin-bottom:8px">아래 샘플 데이터를 수정해서 사용하세요:</p>
-    <textarea id="sampleText" style="min-height:200px">hotel|노보텔 발리 공항|-8.744|115.1652|09/14-15|#2196F3|공항 인근 첫날|n1
-hotel|더 카욘 밸리 리조트|-8.4979|115.2756|09/15-18|#4CAF50|우붓 · 아고다|n2
-hotel|아야나 리조트 발리|-8.7862|115.1393|09/18-21|#FF9800|짐바란|n3
-hotel|아야나 빌라스|-8.788|115.1366|09/21-23|#E91E63|Stayzaaa|n4
-hotel|알로프트 발리 꾸타|-8.715|115.1708|09/23-24|#9C27B0|여기어때|n5
-stop|가루다 위스누 꾸짜나|-8.8142|115.1667|🏛️|#e74c3c|09/15 로드트립|n11
-stop|타나바락 절벽|-8.651|115.1345|🧗|#e67e22|09/15 로드트립|n12
-stop|팔밀라 비치클럽|-8.8383|115.1635|🏖️|#2ecc71|09/15 로드트립|n13
-stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</textarea>
-    <button class="btn btn-outline" onclick="document.getElementById('textInput').value=document.getElementById('sampleText').value;switchTab('upload');">이 데이터로 시작하기 →</button>
-  </div>
-
-
 
   <div id="parseStatus"></div>
   <div class="btn-row">
@@ -129,7 +172,6 @@ stop|울루와뚜 사원|-8.8294|115.0843|🛕|#3498db|09/15 로드트립|n14</t
 <div class="card" id="step3" style="display:none">
   <h2>🗺️ 생성된 지도</h2>
   <div class="btn-row" style="margin-bottom:12px">
-    <button class="btn btn-outline" onclick="goStep(2)">← 데이터 수정</button>
     <button class="btn btn-outline" id="downloadBtn" onclick="downloadHTML()">💾 HTML 다운로드</button>
     <button class="btn btn-outline" onclick="resetAll()">🔄 처음부터</button>
   </div>
@@ -206,14 +248,6 @@ function goStep(n) {
       bb.textContent = '🗺️ 맵 만들기';
     }
   }
-}
-
-function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
-  document.querySelectorAll('.tab-content').forEach(function(c){ c.classList.remove('active'); });
-  var tb = document.querySelector('.tab-btn[onclick*="'+name+'"]');
-  if (tb) tb.classList.add('active');
-  document.getElementById('tab-'+name).classList.add('active');
 }
 
 function resetAll() {
@@ -297,18 +331,8 @@ function generateMap() {
   // AI 파싱 결과가 있으면 그대로 사용
   if (parsedData.hotels.length > 0) { goStep(3); return; }
   
-  // 텍스트 영역에 내용이 있으면 AI 파싱 후 생성
-  var textData = document.getElementById('textInput').value.trim();
-  if (textData) {
-    document.getElementById('buildBtn').disabled = true;
-    document.getElementById('buildBtn').textContent = '⏳ AI 분석 중...';
-    aiParseFromText(textData).then(function(){
-      if (parsedData.hotels.length > 0) goStep(3);
-    });
-    return;
-  }
-  
-  alert('파일을 업로드하거나 여행 일정 텍스트를 입력해주세요.');
+  // 데이터가 없으면 업로드를 안내
+  alert('파일을 업로드하거나 AI 추천 기능을 이용해주세요.');
 }
 
 function renderMapInContainer() {
@@ -730,6 +754,119 @@ ${combinedText}`;
   
 }
 
+// ═══════════════════════════════════════════
+// AI 맞춤 여행 추천
+// ═══════════════════════════════════════════
+async function aiRecommend() {
+  var dest = document.getElementById('aiDestination').value.trim();
+  if (!dest) { alert('여행지를 입력해주세요!'); return; }
+  
+  var duration = document.getElementById('aiDuration').value || '3박 4일';
+  var companion = document.getElementById('aiCompanion').value || '연인/부부';
+  var theme = document.getElementById('aiTheme').value || '관광';
+  var budget = document.getElementById('aiBudget').value || '스탠다드';
+  
+  var btn = document.getElementById('aiRecommendBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ AI가 일정을 생성 중입니다...';
+  showStatus('', '⏳ AI가 ' + dest + ' 여행 일정을 생성 중입니다...');
+  
+  var prompt = `You are a travel itinerary planner. Create a detailed travel itinerary.
+
+USER PREFERENCES:
+- Destination: ${dest}
+- Duration: ${duration}
+- Companion: ${companion}
+- Theme: ${theme}
+- Budget: ${budget}
+
+TASK: Generate a realistic day-by-day itinerary with actual hotels/places in ${dest}.
+For each place, include accurate lat/lng coordinates (Google Maps coordinates).
+
+RULES:
+1. Only real, existing places with real coordinates
+2. Hotels should match the budget level
+3. Activities should match the theme
+4. Sort by date (earliest first)
+5. Include 1-2 stops (landmarks/restaurants) per day
+6. hotel = accommodation, stop = sightseeing
+
+Return ONLY a JSON array. No markdown, no explanation.
+Example format:
+[{"type":"hotel","name":"Hotel Name","lat":-8.5,"lng":115.2,"date":"Day 1","nid":"n1"},
+ {"type":"stop","name":"Landmark","lat":-8.5,"lng":115.2,"date":"Day 1","emoji":"🏛️","nid":"n2"}]`;
+  
+  try {
+    var resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + DEEPSEEK_KEY},
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{role: 'user', content: prompt}],
+        temperature: 0.7,
+        max_tokens: 4096
+      })
+    });
+    
+    if (!resp.ok) throw new Error('API error ' + resp.status);
+    
+    var data = await resp.json();
+    var rawText = data.choices[0].message.content;
+    
+    var jsonMatch = rawText.match(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/) || rawText.match(/(\[[\s\S]*\])/);
+    var jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim();
+    var parsed = JSON.parse(jsonStr);
+    
+    if (!Array.isArray(parsed)) throw new Error('not an array');
+    
+    var COLORS = ['#2196F3','#4CAF50','#FF9800','#E91E63','#9C27B0','#00BCD4','#795548','#607D8B'];
+    var hotels = [], stops = [];
+    parsed.forEach(function(p, i){
+      var item = {
+        name: p.name || '',
+        lat: parseFloat(p.lat) || 0,
+        lng: parseFloat(p.lng) || 0,
+        date: p.date || '',
+        rawDate: i + 1,
+        color: COLORS[i % COLORS.length],
+        note: p.note || '',
+        nid: p.nid || ('n'+(i+1)),
+        no: '',
+        cancelled: false
+      };
+      if (!item.name || isNaN(item.lat) || isNaN(item.lng)) return;
+      if (Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) return;
+      if (p.type === 'stop') {
+        item.no = (stops.length + 1) + '';
+        item.emoji = p.emoji || '📍';
+        stops.push(item);
+      } else {
+        item.no = (hotels.length + 1) + '';
+        hotels.push(item);
+      }
+    });
+    
+    if (hotels.length === 0) throw new Error('no places extracted');
+    
+    parsedData = { hotels: hotels, stops: stops };
+    document.getElementById('buildBtn').disabled = false;
+    document.getElementById('buildBtn').textContent = '🗺️ 맵 만들기';
+    
+    showStatus('ok', '✅ AI 추천 완료! ' + dest + ' ' + duration + ' 일정');
+    document.getElementById('aiSummary').innerHTML = 
+      '🏨 숙소 ' + hotels.length + '개: ' + hotels.map(function(h){return h.name;}).join(', ') + '<br>' +
+      '📍 경유지 ' + stops.length + '개: ' + stops.map(function(s){return s.name;}).join(', ');
+    document.getElementById('aiResult').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '✨ AI 맞춤 일정 추천받기';
+    
+  } catch(e) {
+    showStatus('err', '❌ 추천 실패: ' + e.message);
+    console.error('AI recommend error:', e);
+    btn.disabled = false;
+    btn.textContent = '✨ AI 맞춤 일정 추천받기';
+  }
+}
 function applyAiResult() {
   if (!parsedData || !parsedData.hotels.length) return;
   // 제목이 비어있으면 AI 파싱 텍스트 첫 30글자로 채우기
