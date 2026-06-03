@@ -682,7 +682,7 @@ ${combinedText}`;
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + DEEPSEEK_KEY},
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-pro',
         messages: [{role: 'user', content: prompt}],
         temperature: 0.1,
         max_tokens: 2048
@@ -822,7 +822,7 @@ async function aiRecommend() {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + DEEPSEEK_KEY},
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-pro',
         messages: [{role: 'user', content: prompt}],
         temperature: 0.7,
         max_tokens: 4096
