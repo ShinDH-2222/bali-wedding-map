@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.3</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.4</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -407,8 +407,8 @@ function onMapsLoaded() {
   
   // Build merged sort order for sequential labels (match legend)
   var ml = [];
-  cfg.hotels.forEach(function(h, i){ ml.push({h:true, ix:i, d:h.date}); });
-  cfg.stops.forEach(function(s, i){ ml.push({h:false, ix:i, d:s.date||s.emoji}); });
+  cfg.hotels.forEach(function(h, i){ ml.push({h:true, ix:i, d:h.date, n:h.name, lat:h.lat, lng:h.lng, c:h.color}); });
+  cfg.stops.forEach(function(s, i){ ml.push({h:false, ix:i, d:s.date||s.emoji, n:s.name, lat:s.lat, lng:s.lng, c:s.color, e:s.emoji||'📍'}); });
   ml.sort(function(a, b){ return parseDayNumber(a.d) - parseDayNumber(b.d); });
   var hl={}, sl={};
   ml.forEach(function(x, seq){ if(x.h) hl[x.ix]=(seq+1)+''; else sl[x.ix]=(seq+1)+''; });
@@ -449,43 +449,22 @@ function onMapsLoaded() {
     });
   });
   
-  // Auto-generate routes between consecutive hotels
-  for (var i = 0; i < cfg.hotels.length - 1; i++) {
-    var from = cfg.hotels[i], to = cfg.hotels[i+1];
+  // Build continuous route through merged order (one path, no gaps)
+  for (var i = 0; i < ml.length - 1; i++) {
+    var from = ml[i], to = ml[i+1];
     var dist = computeDist(from.lat, from.lng, to.lat, to.lng);
-    var color = from.color;
-    var line = new google.maps.Polyline({
+    var l = new google.maps.Polyline({
       path: [{lat:from.lat,lng:from.lng},{lat:to.lat,lng:to.lng}],
-      map: gMap, strokeColor: color, strokeWeight: 4, strokeOpacity: 0.65, geodesic: true,
-      icons: [{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:2.5,strokeColor:color,strokeWeight:2.5},repeat:'150px'}]
+      map: gMap, strokeColor: from.c, strokeWeight: 4, strokeOpacity: 0.65, geodesic: true,
+      icons: [{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:2.5,strokeColor:from.c,strokeWeight:2.5},repeat:'150px'}]
     });
-    line._info = '🚗 ' + dist + ' · 직선거리<br><small>' + from.name + ' → ' + to.name + '</small>';
-    line._idx = i;
-    line.addListener('click', function(ev){ gIw.setContent(this._info); gIw.setPosition(ev.latLng); gIw.open(gMap); });
-    gAllLines.push(line);
+    l._info = '🚗 ' + dist + ' · 직선거리<br><small>' + from.n + ' → ' + to.n + '</small>';
+    l._idx = i;
+    l.addListener('click', function(ev){ gIw.setContent(this._info); gIw.setPosition(ev.latLng); gIw.open(gMap); });
+    gAllLines.push(l);
   }
   
-  // Auto-generate road trip: hotels[0] → stops → hotels[1]
-  if (cfg.stops.length > 0) {
-    var rtPts = [{lat:cfg.hotels[0].lat,lng:cfg.hotels[0].lng}];
-    cfg.stops.forEach(function(p){ rtPts.push({lat:p.lat,lng:p.lng}); });
-    rtPts.push({lat:cfg.hotels[1].lat,lng:cfg.hotels[1].lng});
-    
-    for (var j = 0; j < rtPts.length - 1; j++) {
-      var d = computeDist(rtPts[j].lat, rtPts[j].lng, rtPts[j+1].lat, rtPts[j+1].lng);
-      var rline = new google.maps.Polyline({
-        path: [rtPts[j], rtPts[j+1]],
-        map: gMap, strokeColor: '#ff6b6b', strokeWeight: 6, strokeOpacity: 0.7, geodesic: true,
-        icons: [{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:3,strokeColor:'#ff6b6b',strokeWeight:3},repeat:'150px'}]
-      });
-      var segName = (j === 0 ? cfg.hotels[0].name : cfg.stops[j-1].name) + '→' + (j < cfg.stops.length ? cfg.stops[j].name : cfg.hotels[1].name);
-      rline._info = '🚗 ' + d + ' · 직선거리<br><small>' + segName + '</small>';
-      rline._idx = j;
-      rline.addListener('click', function(ev){ gIw.setContent(this._info); gIw.setPosition(ev.latLng); gIw.open(gMap); });
-      gRtLines.push(rline);
-    }
-    gRtLines.forEach(function(l){ gAllLines.push(l); });
-  }
+  gRtLines = [];
   
   // (zoom set by renderMapInContainer)
   
@@ -521,35 +500,20 @@ function parseDayNumber(dateStr) {
 }
 
 function buildDynamicLegend(cfg) {
-  // Pre-compute hotel-to-hotel routes
-  var hotelRoutes = {};
-  cfg.hotels.forEach(function(h, i){
-    var rts = [];
-    if (i > 0) rts.push(i - 1);
-    if (i < cfg.hotels.length - 1) rts.push(i);
-    hotelRoutes[i] = rts;
-  });
-  // Pre-compute road trip routes (each stop gets incoming + outgoing)
-  var stopRoutes = {};
-  cfg.stops.forEach(function(p, i){
-    var rts = [];
-    if (gRtLines.length > 0) {
-      rts.push('rt' + i);
-      if (i + 1 < gRtLines.length) rts.push('rt' + (i + 1));
-    }
-    stopRoutes[i] = rts;
-  });
   
   // Merge hotels + stops, sort by day number
   var merged = [];
-  cfg.hotels.forEach(function(h, i){ merged.push({name:h.name,color:h.color,date:h.date,isHotel:true,idx:i,emoji:''}); });
-  cfg.stops.forEach(function(s, i){ merged.push({name:s.name,color:s.color,date:s.date||s.emoji,isHotel:false,idx:i,emoji:s.emoji||'📍'}); });
+  cfg.hotels.forEach(function(h, i){ merged.push({name:h.name,color:h.color,date:h.date,isHotel:true,emoji:''}); });
+  cfg.stops.forEach(function(s, i){ merged.push({name:s.name,color:s.color,date:s.date||s.emoji,isHotel:false,emoji:s.emoji||'📍'}); });
   merged.sort(function(a, b){ return parseDayNumber(a.date) - parseDayNumber(b.date); });
   
-  // Build legend items with sequential numbers
+  // Build legend items with sequential numbers + simple route indices
   var items = [];
+  var totalItems = merged.length;
   merged.forEach(function(x, seq){
-    var routes = x.isHotel ? (hotelRoutes[x.idx] || []) : (stopRoutes[x.idx] || []);
+    var rts = [];
+    if (seq > 0) rts.push(seq - 1);          // incoming segment
+    if (seq < totalItems - 1) rts.push(seq);  // outgoing segment
     items.push({
       no: (seq + 1) + '',
       name: x.name,
@@ -557,7 +521,7 @@ function buildDynamicLegend(cfg) {
       date: x.date,
       emoji: x.emoji,
       isHotel: x.isHotel,
-      routes: routes
+      routes: rts
     });
   });
   
@@ -622,13 +586,7 @@ function buildDynamicLegend(cfg) {
       
       gAllLines.forEach(function(l){
         var ok = false;
-        rids.forEach(function(rid){
-          if (typeof rid === 'number' && l._idx === rid) ok = true;
-          if (typeof rid === 'string' && rid.slice(0,2) === 'rt') {
-            var si = parseInt(rid.slice(2));
-            if (gRtLines[si] && l === gRtLines[si]) ok = true;
-          }
-        });
+        rids.forEach(function(rid){ if (l._idx === rid) ok = true; });
         l.setOptions({strokeOpacity: ok ? 0.85 : 0.10});
       });
     });
