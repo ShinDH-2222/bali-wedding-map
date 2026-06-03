@@ -380,7 +380,7 @@ function renderMapInContainer() {
   if (!document.getElementById('mapsScript')) {
     var script = document.createElement('script');
     script.id = 'mapsScript';
-    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&loading=async&libraries=marker,geometry&callback=onMapsLoaded&language=ko';
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&loading=async&libraries=marker,geometry&callback=onMapsLoaded&language=ko&region=KR';
     script.async = true;
     script.defer = true;
     document.head.appendChild(script);
@@ -1070,7 +1070,7 @@ function downloadHTML() {
     '}',
     'function resetMapFilter(){gActiveNode=null;var p=document.querySelector(".legend-item.active");if(p)p.classList.remove("active");gAllLines.forEach(function(l){l.setOptions({strokeOpacity:0.65});});}',
     '<\/script>',
-    '<script async defer src="https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=marker,geometry&callback=initMap&language=ko"><\/script>',
+    '<script async defer src="https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=marker,geometry&callback=initMap&language=ko&region=KR"><\/script>',
     '</body>\n</html>'
   ].join('\n');
   
