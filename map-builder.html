@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.10</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.11</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -192,7 +192,7 @@ var currentStep = 1;
 var parsedData = { hotels: [], stops: [] };
 var DEFAULT_KEY = 'AIzaSyCf8nBxRmzu2dFec0RB_qNRfZJTa5_ws3Y';
 var DEFAULT_MAPID = 'DEMO_MAP_ID';
-var gMap = null, gIw = null, gAllLines = [], gRtLines = [], gActiveNode = null;
+var gMap = null, gIw = null, gAllLines = [], gRtLines = [], gMarkers = [], gActiveNode = null;
 
 // 페이지 로드 초기화: 맵 만들기 버튼 비활성화
 (function(){
@@ -256,7 +256,7 @@ function goStep(n) {
 }
 
 function resetAll() {
-  gMap = null; gAllLines = []; gRtLines = []; gActiveNode = null;
+  gMap = null; gAllLines = []; gRtLines = []; gMarkers = []; gActiveNode = null;
   parsedData = { hotels: [], stops: [] };
   document.getElementById('mapContainer').innerHTML = '';
   goStep(1);
@@ -403,7 +403,7 @@ function avg(arr) {
 function onMapsLoaded() {
   var cfg = window._travelMapCfg;
   var zoom = cfg.zoom || 10;
-  gAllLines = []; gRtLines = []; gActiveNode = null;
+  gAllLines = []; gRtLines = []; gMarkers = []; gActiveNode = null;
   
   // Build merged sort order for sequential labels (match legend)
   var ml = [];
@@ -436,6 +436,7 @@ function onMapsLoaded() {
       var h = cfg.hotels[x.ix];
       if (h.cancelled) return;
       var m = mk(lat, lng, h.color, h.cancelled ? '✕' : label, h.cancelled ? 0.5 : 1);
+      gMarkers[seq] = {lat: x.lat, lng: x.lng};
       m.addListener('click', function(){
         gIw.setContent('<b>🏨 ' + h.name + '</b><br>📅 ' + h.date + (h.note ? '<br><span style="color:'+h.color+'">'+h.note+'</span>' : ''));
         gIw.open({map:gMap, anchor:m});
@@ -443,6 +444,7 @@ function onMapsLoaded() {
     } else {
       var p = cfg.stops[x.ix];
       var m2 = mk(lat, lng, p.color, label, 1);
+      gMarkers[seq] = {lat: x.lat, lng: x.lng};
       m2.addListener('click', function(){
         gIw.setContent('<b>' + (p.emoji||'📍') + ' ' + label + '. ' + p.name + '</b>' + (p.date ? '<br>' + p.date : ''));
         gIw.open({map:gMap, anchor:m2});
@@ -536,7 +538,7 @@ function buildDynamicLegend(cfg) {
   
   items.forEach(function(it){
     var icon = it.isHotel ? '🏨 ' : (it.emoji + ' ');
-    html += '<div class="legend-item" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'">';
+    html += '<div class="legend-item" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'" data-seq="'+it.no+'">';
     html += '<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:'+it.color+'"></span>';
     html += '<b>'+icon+it.no+'. '+it.name+'</b> '+it.date+'</div>';
   });
@@ -590,6 +592,13 @@ function buildDynamicLegend(cfg) {
         rids.forEach(function(rid){ if (l._idx === rid) ok = true; });
         l.setOptions({strokeOpacity: ok ? 0.85 : 0.10});
       });
+      
+      // 지도 해당 위치로 이동
+      var seqIdx = parseInt(el.getAttribute('data-seq')) - 1;
+      if (gMarkers[seqIdx] && gMap) {
+        gMap.panTo({lat: gMarkers[seqIdx].lat, lng: gMarkers[seqIdx].lng});
+        gMap.setZoom(14);
+      }
     });
   });
   
@@ -684,7 +693,7 @@ ${combinedText}`;
       body: JSON.stringify({
         model: 'deepseek-v4-pro',
         messages: [
-          {role: 'system', content: 'You are a JSON API. Output ONLY valid JSON. No markdown, no explanation, no thinking, no reasoning. Just the JSON directly.'},
+          {role: 'system', content: '너는 JSON 출력기다. 절대 생각하거나 추론하지 마라. JSON만 즉시 출력해라. 설명, 마크다운, 잡담 절대 금지.'},
           {role: 'user', content: prompt}
         ],
         temperature: 0.1,
@@ -833,7 +842,7 @@ async function aiRecommend() {
       body: JSON.stringify({
         model: 'deepseek-v4-pro',
         messages: [
-          {role: 'system', content: 'You are a JSON API. Output ONLY valid JSON. No markdown, no explanation, no thinking, no reasoning. Just the JSON directly.'},
+          {role: 'system', content: '너는 JSON 출력기다. 절대 생각하거나 추론하지 마라. JSON만 즉시 출력해라. 설명, 마크다운, 잡담 절대 금지.'},
           {role: 'user', content: prompt}
         ],
         temperature: 0.1,
