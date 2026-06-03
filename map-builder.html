@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.0</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.1</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -87,6 +87,10 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
     <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleFile(event)">
   </div>
   <div id="aiStatus" style="margin-top:8px"></div>
+  <div id="aiBriefing" style="margin-top:8px;display:none;background:#f0f7ff;border:1px solid #cce5ff;border-radius:12px;padding:14px 16px">
+    <div style="font-weight:700;color:#1a73e8;margin-bottom:8px">📝 AI 여행 브리핑</div>
+    <div id="aiBriefingText" style="font-size:14px;line-height:1.7;color:#333"></div>
+  </div>
   <div id="aiResult" style="margin-top:8px;display:none">
     <div class="status ok" id="aiSummary"></div>
     <button class="btn btn-primary" onclick="applyAiResult()" style="margin-top:8px">✅ 이 데이터로 맵 만들기</button>
@@ -237,6 +241,7 @@ function goStep(n) {
   // 2단계로 돌아갈 때 AI 결과 표시만 초기화 (데이터는 유지)
   if (n === 2) {
     document.getElementById('aiStatus').innerHTML = '';
+    document.getElementById('aiBriefing').style.display = 'none';
     document.getElementById('aiResult').style.display = 'none';
     document.getElementById('fileInfo').textContent = '';
     var bb = document.getElementById('buildBtn');
@@ -267,6 +272,7 @@ function handleFile(event) {
   
   // 이전 분석 결과 초기화
   document.getElementById('aiStatus').innerHTML = '';
+  document.getElementById('aiBriefing').style.display = 'none';
   document.getElementById('aiResult').style.display = 'none';
   parsedData = { hotels: [], stops: [] };
   
@@ -500,7 +506,10 @@ function buildDynamicLegend(cfg) {
   var items = [], routeIdx = 0;
   
   cfg.hotels.forEach(function(h, i){
-    items.push({id: 'n'+h.nid.replace(/^n/,''), no: (i+1)+'', name: h.name, color: h.color, date: h.date, isHotel: true, routes: (i < cfg.hotels.length-1 ? [routeIdx++] : [])});
+    var rts = [];
+    if (i > 0) rts.push(routeIdx - 1); // incoming route
+    if (i < cfg.hotels.length - 1) { rts.push(routeIdx); routeIdx++; } // outgoing route
+    items.push({id: 'n'+h.nid.replace(/^n/,''), no: (i+1)+'', name: h.name, color: h.color, date: h.date, isHotel: true, routes: rts});
   });
   cfg.stops.forEach(function(p, i){
     items.push({id: p.nid, no: (i+1)+'', name: p.name, color: p.color, date: p.date||p.emoji, isHotel: false, routes: gRtLines.length > 0 ? ['rt'+i] : []});
@@ -770,31 +779,36 @@ async function aiRecommend() {
   btn.disabled = true;
   btn.textContent = '⏳ AI가 일정을 생성 중입니다...';
   showStatus('', '⏳ AI가 ' + dest + ' 여행 일정을 생성 중입니다...');
+  document.getElementById('aiBriefing').style.display = 'none';
+  document.getElementById('aiBriefingText').innerHTML = '';
   
-  var prompt = `You are a travel itinerary planner. Create a detailed travel itinerary.
+  var prompt = `당신은 여행 일정 전문 플래너입니다. 사용자의 선호도에 맞춰 구체적인 ${dest} 여행 일정을 만들어주세요.
 
-USER PREFERENCES:
-- Destination: ${dest}
-- Duration: ${duration}
-- Companion: ${companion}
-- Theme: ${theme}
-- Budget: ${budget}
+[사용자 정보]
+- 여행지: ${dest}
+- 일정: ${duration}
+- 동행자: ${companion}
+- 여행 테마: ${theme}
+- 예산: ${budget}
 
-TASK: Generate a realistic day-by-day itinerary with actual hotels/places in ${dest}.
-For each place, include accurate lat/lng coordinates (Google Maps coordinates).
+[지시사항]
+1. 실제 존재하는 장소만 추천하세요. 정확한 위도/경도 좌표를 포함하세요.
+2. 호텔은 예산에 맞게 선택하세요.
+3. 액티비티는 여행 테마에 맞게 구성하세요.
+4. 날짜 순서로 정렬하세요 (첫날부터).
+5. 하루에 관광지/맛집 1~2곳을 포함하세요.
+6. 호텔 이름에 지역/구 정보를 포함하세요 (예: "OO호텔 (몽마르트)", "△△리조트-7구"). 같은 체인 호텔도 지역으로 구분하세요.
+7. type="hotel"은 숙소, type="stop"은 관광지/맛집입니다.
 
-RULES:
-1. Only real, existing places with real coordinates
-2. Hotels should match the budget level
-3. Activities should match the theme
-4. Sort by date (earliest first)
-5. Include 1-2 stops (landmarks/restaurants) per day
-6. hotel = accommodation, stop = sightseeing
-
-Return ONLY a JSON array. No markdown, no explanation.
-Example format:
-[{"type":"hotel","name":"Hotel Name","lat":-8.5,"lng":115.2,"date":"Day 1","nid":"n1"},
- {"type":"stop","name":"Landmark","lat":-8.5,"lng":115.2,"date":"Day 1","emoji":"🏛️","nid":"n2"}]`;
+[출력 형식]
+반드시 아래 JSON 형식으로만 응답하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.
+{
+  "briefing": "이 일정을 추천한 이유와 여행 팁을 한국어로 3~5문장으로 설명해주세요. 여행 테마, 예산, 동행자를 고려한 맞춤형 설명이어야 합니다.",
+  "itinerary": [
+    {"type":"hotel","name":"호텔 이름 (지역)","lat":48.8566,"lng":2.3522,"date":"1일차","nid":"n1"},
+    {"type":"stop","name":"관광지명","lat":48.8566,"lng":2.3522,"date":"1일차","emoji":"🏛️","nid":"n2"}
+  ]
+}`;
   
   try {
     var resp = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -813,11 +827,16 @@ Example format:
     var data = await resp.json();
     var rawText = data.choices[0].message.content;
     
-    var jsonMatch = rawText.match(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/) || rawText.match(/(\[[\s\S]*\])/);
+    // JSON 추출 (```json ... ``` 또는 raw JSON)
+    var jsonMatch = rawText.match(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/) || rawText.match(/(\{[\s\S]*\})/);
     var jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim();
-    var parsed = JSON.parse(jsonStr);
+    var result = JSON.parse(jsonStr);
     
-    if (!Array.isArray(parsed)) throw new Error('not an array');
+    // briefing + itinerary 형식 처리
+    var briefing = result.briefing || '';
+    var parsed = result.itinerary || result; // 하위 호환: 배열이 직접 올 경우
+    
+    if (!Array.isArray(parsed)) throw new Error('일정 데이터가 배열이 아닙니다');
     
     var COLORS = ['#2196F3','#4CAF50','#FF9800','#E91E63','#9C27B0','#00BCD4','#795548','#607D8B'];
     var hotels = [], stops = [];
@@ -846,13 +865,20 @@ Example format:
       }
     });
     
-    if (hotels.length === 0) throw new Error('no places extracted');
+    if (hotels.length === 0) throw new Error('추출된 장소가 없습니다');
     
     parsedData = { hotels: hotels, stops: stops };
+    
+    // 브리핑 표시
+    if (briefing) {
+      document.getElementById('aiBriefingText').innerHTML = briefing.replace(/\n/g, '<br>');
+      document.getElementById('aiBriefing').style.display = 'block';
+    }
+    
     document.getElementById('buildBtn').disabled = false;
     document.getElementById('buildBtn').textContent = '🗺️ 맵 만들기';
     
-    showStatus('ok', '✅ AI 추천 완료! ' + dest + ' ' + duration + ' 일정');
+    showStatus('ok', '✅ AI 추천 완료! ' + dest + ' ' + duration + ' 일정 - 브리핑을 확인 후 맵을 만들어보세요');
     document.getElementById('aiSummary').innerHTML = 
       '🏨 숙소 ' + hotels.length + '개: ' + hotels.map(function(h){return h.name;}).join(', ') + '<br>' +
       '📍 경유지 ' + stops.length + '개: ' + stops.map(function(s){return s.name;}).join(', ');
