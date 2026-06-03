@@ -54,7 +54,7 @@ textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-s
 </head>
 <body>
 <div class="wrap">
-<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.6</b></span></h1>
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v3.7</b></span></h1>
 <div class="steps">
   <div class="step active" data-step="1">① 여행 정보 입력</div>
   <div class="step" data-step="2">② 데이터 업로드</div>
@@ -328,8 +328,24 @@ function renderMapInContainer() {
   var cx = avg(allLats);
   var cy = avg(allLngs);
   
-  // 줌 레벨 자동 계산: 장소들의 분포 범위에 따라 (fitBounds가 덮어씀)
-  var zoom = 11;
+  // 모든 마커가 보이도록 줌 레벨 계산 (fitBounds 대신 안정적 수동 계산)
+  var minLat = Math.min.apply(null, allLats), maxLat = Math.max.apply(null, allLats);
+  var minLng = Math.min.apply(null, allLngs), maxLng = Math.max.apply(null, allLngs);
+  var spread = Math.max(maxLat - minLat, maxLng - minLng) * 1.5;
+  var zoom;
+  if (spread <= 0.001) zoom = 16;
+  else if (spread <= 0.005) zoom = 15;
+  else if (spread <= 0.01) zoom = 14;
+  else if (spread <= 0.05) zoom = 13;
+  else if (spread <= 0.1) zoom = 12;
+  else if (spread <= 0.3) zoom = 11;
+  else if (spread <= 0.5) zoom = 10;
+  else if (spread <= 1) zoom = 9;
+  else if (spread <= 2) zoom = 8;
+  else if (spread <= 5) zoom = 7;
+  else zoom = 6;
+  cx = (minLat + maxLat) / 2;
+  cy = (minLng + maxLng) / 2;
   
   if (!document.getElementById('mapsScript')) {
     var script = document.createElement('script');
@@ -356,9 +372,9 @@ function avg(arr) {
 
 function onMapsLoaded() {
   var cfg = window._travelMapCfg;
+  var zoom = cfg.zoom || 10;
   gAllLines = []; gRtLines = []; gActiveNode = null;
   
-  var zoom = 11; // fitBounds가 덮어씀
   gMap = new google.maps.Map(document.getElementById('travelMap'), {
     center: cfg.center, zoom: cfg.zoom,
     mapId: cfg.mapId,
@@ -433,16 +449,8 @@ function onMapsLoaded() {
     gRtLines.forEach(function(l){ gAllLines.push(l); });
   }
   
-  // 모든 마커가 보이도록 자동 줌/이동
-  var bounds = new google.maps.LatLngBounds();
-  cfg.hotels.forEach(function(h){ bounds.extend(new google.maps.LatLng(h.lat, h.lng)); });
-  cfg.stops.forEach(function(p){ bounds.extend(new google.maps.LatLng(p.lat, p.lng)); });
-  gMap.fitBounds(bounds, 80);
+  // (zoom set by renderMapInContainer)
   
-  // PC에서 맵 타일 로딩 보장
-  google.maps.event.addListenerOnce(gMap, 'idle', function(){
-    google.maps.event.trigger(gMap, 'resize');
-  });
   
   // Legend
   buildDynamicLegend(cfg);
@@ -691,12 +699,23 @@ function downloadHTML() {
   var allLats = h.map(function(x){return x.lat;}).concat(s.map(function(x){return x.lat;}));
   var allLngs = h.map(function(x){return x.lng;}).concat(s.map(function(x){return x.lng;}));
   var cx = avg(allLats), cy = avg(allLngs);
-  // fitBounds로 모든 마커 자동 표시
-  var fbCode = 'gMap.fitBounds(new google.maps.LatLngBounds(';
-  h.forEach(function(x){ fbCode += 'new google.maps.LatLng('+x.lat+','+x.lng+'),'; });
-  s.forEach(function(x){ fbCode += 'new google.maps.LatLng('+x.lat+','+x.lng+'),'; });
-  fbCode += '),80);';
-  var zoom = 11;
+  var latSpread = Math.max.apply(null,allLats)-Math.min.apply(null,allLats);
+  var lngSpread = Math.max.apply(null,allLngs)-Math.min.apply(null,allLngs);
+  var spread = Math.max(latSpread, lngSpread) * 1.5;
+  var zoom;
+  if (spread <= 0.001) zoom = 16;
+  else if (spread <= 0.005) zoom = 15;
+  else if (spread <= 0.01) zoom = 14;
+  else if (spread <= 0.05) zoom = 13;
+  else if (spread <= 0.1) zoom = 12;
+  else if (spread <= 0.3) zoom = 11;
+  else if (spread <= 0.5) zoom = 10;
+  else if (spread <= 1) zoom = 9;
+  else if (spread <= 2) zoom = 8;
+  else if (spread <= 5) zoom = 7;
+  else zoom = 6;
+  cx = (Math.min.apply(null,allLats) + Math.max.apply(null,allLats)) / 2;
+  cy = (Math.min.apply(null,allLngs) + Math.max.apply(null,allLngs)) / 2;
   
   // Build standalone HTML
   var hotelsJSON = JSON.stringify(h.map(function(x,i){
