@@ -536,11 +536,39 @@ function buildDynamicLegend(cfg) {
   html += '<button class="reset-btn" style="background:#eee;border:none;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;margin-bottom:6px">🔄 전체보기</button>';
   html += '<b>🏨 클릭시 경로 하이라이트</b><br>';
   
+  // Group items by day for collapsible sections
+  var dayGroups = {};
   items.forEach(function(it){
-    var icon = it.isHotel ? '🏨 ' : (it.emoji + ' ');
-    html += '<div class="legend-item" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'" data-seq="'+it.no+'">';
-    html += '<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:'+it.color+'"></span>';
-    html += '<b>'+icon+it.no+'. '+it.name+'</b> '+it.date+'</div>';
+    var dn = parseDayNumber(it.date);
+    var dayKey = dn ? dn + '일차' : '기타';
+    if (!dayGroups[dayKey]) dayGroups[dayKey] = {day: dayKey, items: []};
+    dayGroups[dayKey].items.push(it);
+  });
+  var dayKeys = Object.keys(dayGroups).sort(function(a,b){
+    var na = parseInt(a) || 0, nb = parseInt(b) || 0;
+    if (na === 0 && a !== '기타') na = 999;
+    if (nb === 0 && b !== '기타') nb = 999;
+    return na - nb;
+  });
+  
+  dayKeys.forEach(function(day){
+    var group = dayGroups[day];
+    var count = group.items.length;
+    html += '<div class="day-group">';
+    html += '<div class="day-header" style="cursor:pointer;padding:5px 0;border-bottom:1px solid #eee;margin-bottom:2px;display:flex;justify-content:space-between;align-items:center;user-select:none;font-weight:700;font-size:12px;color:#555">';
+    html += '<span>📅 '+day+' ('+count+'곳)</span>';
+    html += '<span class="day-arrow" style="font-size:11px">▼</span>';
+    html += '</div>';
+    html += '<div class="day-body" style="padding-left:0">';
+    
+    group.items.forEach(function(it){
+      var icon = it.isHotel ? '🏨 ' : (it.emoji + ' ');
+      html += '<div class="legend-item" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'" data-seq="'+it.no+'">';
+      html += '<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:'+it.color+'"></span>';
+      html += '<b>'+icon+it.no+'. '+it.name+'</b> '+it.date+'</div>';
+    });
+    
+    html += '</div></div>';
   });
   
   html += '</div></div>';
@@ -567,6 +595,22 @@ function buildDynamicLegend(cfg) {
   div.querySelector('.reset-btn').addEventListener('click', function(e){
     e.stopPropagation();
     resetMapFilter();
+  });
+  
+  // 일자별 접기/펴기
+  div.querySelectorAll('.day-header').forEach(function(dh){
+    dh.addEventListener('click', function(e){
+      e.stopPropagation();
+      var body = dh.nextElementSibling;
+      var arrow = dh.querySelector('.day-arrow');
+      if (body.style.display === 'none') {
+        body.style.display = 'block';
+        arrow.textContent = '▼';
+      } else {
+        body.style.display = 'none';
+        arrow.textContent = '▶';
+      }
+    });
   });
   
   // 범례 아이템 클릭 필터 (이벤트 위임 - onclick 제거, CSP 대응)
