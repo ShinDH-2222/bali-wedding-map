@@ -741,7 +741,8 @@ ${combinedText}`;
           {role: 'user', content: prompt}
         ],
         temperature: 0.1,
-        max_tokens: 80000
+        max_tokens: 80000,
+        thinking: {type: 'disabled'}
       })
     });
     
@@ -890,7 +891,8 @@ async function aiRecommend() {
           {role: 'user', content: prompt}
         ],
         temperature: 0.1,
-        max_tokens: 80000
+        max_tokens: 80000,
+        thinking: {type: 'disabled'}
       })
     });
     
