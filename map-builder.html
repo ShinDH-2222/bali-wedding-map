@@ -2,21 +2,1099 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>여행 매핑 빌더 - 점검 중</title>
+<title>여행 지도 빌더 (Travel Map Builder)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
-  .card { background: white; padding: 48px; border-radius: 16px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 400px; }
-  h1 { font-size: 24px; margin-bottom: 8px; }
-  p { color: #666; line-height: 1.6; }
-  .emoji { font-size: 48px; margin-bottom: 16px; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;background:#f5f7fa;color:#333;min-height:100vh}
+.wrap{max-width:800px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:24px;margin-bottom:4px}
+h1 span{font-size:14px;color:#888;font-weight:400}
+.steps{display:flex;gap:0;margin:16px 0 24px}
+.step{flex:1;text-align:center;padding:10px 8px;background:#e8ecf1;font-size:13px;font-weight:600;color:#999;cursor:pointer;border-radius:4px;transition:all .2s}
+.step:first-child{border-radius:8px 0 0 8px}
+.step:last-child{border-radius:0 8px 8px 0}
+.step.active{background:#1a73e8;color:#fff}
+.step.done{background:#34a853;color:#fff}
+.card{background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 1px 6px rgba(0,0,0,0.08);margin-bottom:16px}
+.card h2{font-size:16px;margin-bottom:12px;color:#1a73e8}
+label{display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:4px;margin-top:12px}
+label:first-child{margin-top:0}
+input[type=text],textarea,select{width:100%;padding:10px 12px;border:1.5px solid #dde;border-radius:8px;font-size:14px;font-family:inherit;transition:border .2s}
+input[type=text]:focus,textarea:focus,select:focus{outline:none;border-color:#1a73e8}
+textarea{resize:vertical;min-height:100px;font-family:'SF Mono',monospace;font-size:12px;line-height:1.6}
+.upload-zone{border:2px dashed #ccd;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin:12px 0}
+.upload-zone:hover{border-color:#1a73e8;background:#f0f4ff}
+.upload-zone.drag{border-color:#1a73e8;background:#e8f0ff}
+.upload-zone .icon{font-size:40px;margin-bottom:8px}
+.upload-zone .hint{font-size:13px;color:#999}
+.tabs{display:flex;gap:4px;margin-bottom:12px}
+.tab-btn{padding:6px 14px;border:1px solid #dde;border-radius:6px;background:#fff;cursor:pointer;font-size:13px;transition:all .2s}
+.tab-btn.active{background:#1a73e8;color:#fff;border-color:#1a73e8}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.btn{padding:10px 24px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-primary{background:#1a73e8;color:#fff}
+.btn-primary:hover{background:#1557b0}
+.btn-primary:disabled{background:#999;cursor:not-allowed}
+.btn-outline{background:#fff;color:#1a73e8;border:1.5px solid #1a73e8}
+.btn-outline:hover{background:#f0f4ff}
+.btn-row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.format-box{background:#f8f9fb;border-radius:8px;padding:12px;font-size:12px;font-family:'SF Mono',monospace;line-height:1.8;overflow-x:auto;white-space:pre;color:#555;margin-top:8px}
+.status{font-size:13px;padding:8px 12px;border-radius:6px;margin-top:8px}
+.status.ok{background:#e6f4ea;color:#1e7e34}
+.status.err{background:#fce8e6;color:#c5221f}
+#mapContainer{display:none;position:relative;width:100%;min-height:70vh;height:calc(100vh - 120px);border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.12);margin-top:8px}
+.file-info{font-size:12px;color:#1a73e8;margin-top:6px}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="emoji">🔧</div>
-  <h1>서버 이전 중</h1>
-  <p>더 안정적인 서비스를 위해<br>프록시 서버로 마이그레이션 중입니다.<br>잠시만 기다려주세요! 🙏</p>
+<div class="wrap">
+<h1>🗺️ 여행 지도 빌더 <span>Travel Map Builder <b style="color:#1a73e8">v5.11</b></span></h1>
+<div class="steps">
+  <div class="step active" data-step="1">① 여행 정보 입력</div>
+  <div class="step" data-step="2">② 데이터 업로드</div>
+  <div class="step" data-step="3">③ 지도 생성</div>
 </div>
+
+<!-- STEP 1: Trip Info -->
+<div class="card" id="step1">
+  <h2>📝 여행 정보</h2>
+  <label>여행 제목</label>
+  <input type="text" id="tripTitle" placeholder="예: 발리 결혼여행 2026">
+  <label>부제목 (선택)</label>
+  <input type="text" id="tripSubtitle" placeholder="예: ✈️ 서울 ↔ 발리 · 10박 11일">
+  <p style="font-size:12px;color:#888;margin-top:12px">🔑 Google Maps는 자동으로 연결됩니다.<br>📍 중심 좌표와 줌 레벨은 입력한 장소에 맞춰 자동 조정됩니다.</p>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="goStep(2)">다음 →</button>
+  </div>
+</div>
+
+<!-- STEP 2: Data Input -->
+<div class="card" id="step2" style="display:none">
+  <h2>📋 여행 데이터 입력</h2>
+
+  <!-- 파일 업로드 -->
+  <p style="font-size:13px;color:#555;margin-bottom:8px">📎 <b>엑셀, CSV, 텍스트 파일</b>을 올리면 AI가 장소·날짜·좌표를 자동 추출합니다. 경비 항목은 알아서 제외!</p>
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📁</div>
+    <div class="hint">클릭하여 파일 선택 (.xlsx, .csv, .txt)<br>또는 파일을 여기에 드래그하세요</div>
+    <div class="file-info" id="fileInfo"></div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" style="display:none" onchange="handleFile(event)">
+  </div>
+  <div id="aiStatus" style="margin-top:8px"></div>
+  <div id="aiBriefing" style="margin-top:8px;display:none;background:#f0f7ff;border:1px solid #cce5ff;border-radius:12px;padding:14px 16px">
+    <div style="font-weight:700;color:#1a73e8;margin-bottom:8px">📝 AI 여행 브리핑</div>
+    <div id="aiBriefingText" style="font-size:14px;line-height:1.7;color:#333"></div>
+  </div>
+  <div id="aiResult" style="margin-top:8px;display:none">
+    <div class="status ok" id="aiSummary"></div>
+    <button class="btn btn-primary" onclick="applyAiResult()" style="margin-top:8px">✅ 이 데이터로 맵 만들기</button>
+  </div>
+
+  <!-- 구분선 -->
+  <div style="display:flex;align-items:center;margin:20px 0;gap:12px">
+    <div style="flex:1;height:1px;background:#e0e0e0"></div>
+    <span style="font-size:12px;color:#999;white-space:nowrap">또는 AI에게 맡기기</span>
+    <div style="flex:1;height:1px;background:#e0e0e0"></div>
+  </div>
+
+  <!-- AI 여행 추천 -->
+  <div style="padding:16px;background:#f0f4ff;border-radius:12px;border:1.5px solid #d0d8f0">
+    <h3 style="margin:0 0 4px;font-size:15px">🤖 AI 맞춤 여행 추천</h3>
+    <p style="font-size:12px;color:#666;margin:0 0 12px">원하는 조건을 선택하면 AI가 맞춤 일정을 생성합니다</p>
+
+    <label style="font-size:13px;font-weight:600">🌍 가고 싶은 여행지</label>
+    <input type="text" id="aiDestination" placeholder="예: 발리, 도쿄, 파리, 제주도..." style="margin-bottom:12px">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label style="font-size:13px;font-weight:600">📅 일정</label>
+        <select id="aiDuration">
+          <option value="">선택하세요</option>
+          <option value="당일치기">☀️ 당일치기</option>
+          <option value="1박 2일">🌙 1박 2일</option>
+          <option value="2박 3일">🌙 2박 3일</option>
+          <option value="3박 4일">🌙 3박 4일</option>
+          <option value="4박 5일">🌙 4박 5일</option>
+          <option value="1주일">📆 1주일</option>
+          <option value="2주일">📆 2주일</option>
+          <option value="한 달 살기">🏠 한 달 살기</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600">👥 동행자</label>
+        <select id="aiCompanion">
+          <option value="">선택하세요</option>
+          <option value="나홀로 여행">🧍 나홀로 여행</option>
+          <option value="연인/부부">💑 연인 / 부부</option>
+          <option value="친구들과">👫 친구들과</option>
+          <option value="아이와 함께">👶 아이와 함께</option>
+          <option value="부모님과 함께(효도 여행)">👴 부모님과 함께 (효도 여행)</option>
+          <option value="비즈니스 파트너">💼 비즈니스 파트너</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600">🎯 여행 테마</label>
+        <select id="aiTheme">
+          <option value="">선택하세요</option>
+          <option value="신혼여행(허니문)">💍 신혼여행 (허니문)</option>
+          <option value="미식 탐방">🍽️ 미식 탐방</option>
+          <option value="쇼핑 중심">🛍️ 쇼핑 중심</option>
+          <option value="역사/문화 유적">🏛️ 역사 / 문화 유적</option>
+          <option value="호캉스">🏊 호캉스</option>
+          <option value="로컬 체험">🌿 로컬 체험</option>
+          <option value="예술/전시 관람">🎨 예술 / 전시 관람</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600">💰 예산</label>
+        <select id="aiBudget">
+          <option value="">선택하세요</option>
+          <option value="배낭여행">🎒 배낭여행 (게스트하우스, 로컬 맛집)</option>
+          <option value="스탠다드">⭐⭐⭐ 스탠다드 (3~4성급 호텔, 적당한 경비)</option>
+          <option value="프리미엄">👑 프리미엄 (5성급 럭셔리, 파인다이닝, 비즈니스)</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="aiRecommendBtn" onclick="aiRecommend()" style="width:100%;margin-top:14px">✨ AI 맞춤 일정 추천받기</button>
+  </div>
+
+  <div id="parseStatus"></div>
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="goStep(1)">← 이전</button>
+    <button class="btn btn-primary" id="buildBtn" onclick="generateMap()" disabled>🗺️ 맵 만들기</button>
+  </div>
+</div>
+
+<!-- STEP 3: Map -->
+<div class="card" id="step3" style="display:none">
+  <h2>🗺️ 생성된 지도</h2>
+  <div class="btn-row" style="margin-bottom:12px">
+    <button class="btn btn-outline" id="downloadBtn" onclick="downloadHTML()">💾 HTML 다운로드</button>
+    <button class="btn btn-outline" onclick="resetAll()">🔄 처음부터</button>
+  </div>
+  <div id="mapContainer"></div>
+</div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════
+var currentStep = 1;
+var parsedData = { hotels: [], stops: [] };
+var DEFAULT_KEY = 'AIzaSyCf8nBxRmzu2dFec0RB_qNRfZJTa5_ws3Y';
+var DEFAULT_MAPID = 'DEMO_MAP_ID';
+var gMap = null, gIw = null, gAllLines = [], gRtLines = [], gMarkers = [], gActiveNode = null;
+
+// 페이지 로드 초기화: 맵 만들기 버튼 비활성화
+(function(){
+  setTimeout(function(){
+    var bb = document.getElementById('buildBtn');
+    if (bb) { bb.disabled = true; bb.textContent = '🗺️ 맵 만들기'; }
+  }, 100);
+})();
+
+// ═══════════════════════════════════════════
+// Navigation
+// ═══════════════════════════════════════════
+function goStep(n) {
+  document.getElementById('step'+currentStep).style.display = 'none';
+  document.getElementById('step'+n).style.display = 'block';
+  document.querySelectorAll('.step').forEach(function(s){
+    s.classList.remove('active','done');
+    var sn = parseInt(s.getAttribute('data-step'));
+    if (sn < n) s.classList.add('done');
+    if (sn === n) s.classList.add('active');
+  });
+  currentStep = n;
+  if (n === 3) {
+    // 풀스크린 모드: 모든 제약 제거
+    document.querySelector('.steps').style.display = 'none';
+    document.querySelector('h1').style.display = 'none';
+    document.querySelector('.wrap').style.maxWidth = 'none';
+    document.querySelector('.wrap').style.padding = '0';
+    document.getElementById('step3').classList.add('fullscreen');
+    document.getElementById('mapContainer').style.display = 'block';
+    document.getElementById('mapContainer').style.height = 'calc(100vh - 50px)';
+    document.getElementById('mapContainer').style.borderRadius = '0';
+    document.getElementById('mapContainer').style.marginTop = '0';
+    setTimeout(function(){ renderMapInContainer(); }, 300);
+  } else {
+    document.querySelector('.steps').style.display = 'flex';
+    document.querySelector('h1').style.display = 'block';
+    document.querySelector('.wrap').style.maxWidth = '';
+    document.querySelector('.wrap').style.padding = '';
+    document.getElementById('step3').classList.remove('fullscreen');
+    document.getElementById('mapContainer').style.display = 'none';
+    document.getElementById('mapContainer').style.height = '';
+    document.getElementById('mapContainer').style.borderRadius = '';
+    document.getElementById('mapContainer').style.marginTop = '';
+  }
+  // 2단계로 돌아갈 때 AI 결과 표시만 초기화 (데이터는 유지)
+  if (n === 2) {
+    document.getElementById('aiStatus').innerHTML = '';
+    document.getElementById('aiBriefing').style.display = 'none';
+    document.getElementById('aiResult').style.display = 'none';
+    document.getElementById('fileInfo').textContent = '';
+    var bb = document.getElementById('buildBtn');
+    if (parsedData.hotels.length > 0) {
+      bb.disabled = false;
+      bb.textContent = '🗺️ 맵 만들기';
+    } else {
+      bb.disabled = true;
+      bb.textContent = '🗺️ 맵 만들기';
+    }
+  }
+}
+
+function resetAll() {
+  gMap = null; gAllLines = []; gRtLines = []; gMarkers = []; gActiveNode = null;
+  parsedData = { hotels: [], stops: [] };
+  document.getElementById('mapContainer').innerHTML = '';
+  goStep(1);
+}
+
+// ═══════════════════════════════════════════
+// File Upload (auto AI-parse)
+// ═══════════════════════════════════════════
+function handleFile(event) {
+  var file = event.target.files[0];
+  var fileInfo = document.getElementById('fileInfo');
+  if (!file) return;
+  
+  // 이전 분석 결과 초기화
+  document.getElementById('aiStatus').innerHTML = '';
+  document.getElementById('aiBriefing').style.display = 'none';
+  document.getElementById('aiResult').style.display = 'none';
+  parsedData = { hotels: [], stops: [] };
+  
+  fileInfo.textContent = '⏳ ' + file.name + ' 분석 중...';
+  
+  var ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'xlsx' || ext === 'xls') {
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        var wb = XLSX.read(e.target.result, {type:'array'});
+        var allText = [];
+        wb.SheetNames.forEach(function(sn){
+          var ws = wb.Sheets[sn];
+          var rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+          rows.forEach(function(r){ if (Array.isArray(r)) allText.push(r.join('\t')); });
+        });
+        fileInfo.textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB) → AI 분석 시작';
+        aiParseFromText(allText.join('\n'));
+      } catch(err) {
+        fileInfo.textContent = '❌ 파일 읽기 실패: ' + err.message;
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    var reader = new FileReader();
+    reader.onload = function(e){
+      fileInfo.textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB) → AI 분석 시작';
+      aiParseFromText(e.target.result);
+    };
+    reader.readAsText(file);
+  }
+}
+
+// Drag & drop
+var dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', function(){ dz.classList.remove('drag'); });
+dz.addEventListener('drop', function(e){
+  e.preventDefault(); dz.classList.remove('drag');
+  var f = e.dataTransfer.files[0];
+  if (f) { document.getElementById('fileInput').files = e.dataTransfer.files; handleFile({target:{files:[f]}}); }
+});
+
+// ═══════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════
+function autoColor(i) {
+  var colors = ['#2196F3','#4CAF50','#FF9800','#E91E63','#9C27B0','#e74c3c','#e67e22','#2ecc71','#3498db','#f39c12'];
+  return colors[i % colors.length];
+}
+
+function showStatus(type, msg) {
+  var el = document.getElementById('parseStatus');
+  el.innerHTML = '<div class="status ' + type + '">' + msg + '</div>';
+}
+
+// ═══════════════════════════════════════════
+// Map Generation
+// ═══════════════════════════════════════════
+function generateMap() {
+  // AI 파싱 결과가 있으면 그대로 사용
+  if (parsedData.hotels.length > 0) { goStep(3); return; }
+  
+  // 데이터가 없으면 업로드를 안내
+  alert('파일을 업로드하거나 AI 추천 기능을 이용해주세요.');
+}
+
+function renderMapInContainer() {
+  var key = DEFAULT_KEY;
+  var mapId = DEFAULT_MAPID;
+  var container = document.getElementById('mapContainer');
+  container.innerHTML = '<div id="travelMap" style="position:absolute;top:0;left:0;width:100%;height:100%"></div>';
+  
+  var h = parsedData.hotels;
+  var s = parsedData.stops;
+  var title = document.getElementById('tripTitle').value.trim() || '여행 동선';
+  var subtitle = document.getElementById('tripSubtitle').value.trim() || '';
+  
+  // 중심 좌표: 모든 장소의 평균
+  var allLats = h.map(function(x){return x.lat;}).concat(s.map(function(x){return x.lat;}));
+  var allLngs = h.map(function(x){return x.lng;}).concat(s.map(function(x){return x.lng;}));
+  var cx = avg(allLats);
+  var cy = avg(allLngs);
+  
+  // 모든 마커가 보이도록 줌 레벨 계산 (fitBounds 대신 안정적 수동 계산)
+  var minLat = Math.min.apply(null, allLats), maxLat = Math.max.apply(null, allLats);
+  var minLng = Math.min.apply(null, allLngs), maxLng = Math.max.apply(null, allLngs);
+  var spread = Math.max(maxLat - minLat, maxLng - minLng) * 1.5;
+  var zoom;
+  if (spread <= 0.001) zoom = 16;
+  else if (spread <= 0.005) zoom = 15;
+  else if (spread <= 0.01) zoom = 14;
+  else if (spread <= 0.05) zoom = 13;
+  else if (spread <= 0.1) zoom = 12;
+  else if (spread <= 0.3) zoom = 11;
+  else if (spread <= 0.5) zoom = 10;
+  else if (spread <= 1) zoom = 9;
+  else if (spread <= 2) zoom = 8;
+  else if (spread <= 5) zoom = 7;
+  else zoom = 6;
+  cx = (minLat + maxLat) / 2;
+  cy = (minLng + maxLng) / 2;
+  
+  if (!document.getElementById('mapsScript')) {
+    var script = document.createElement('script');
+    script.id = 'mapsScript';
+    script.src = 'https://maps.googleapis.com/maps/api/js?key=' + key + '&loading=async&libraries=marker,geometry&callback=onMapsLoaded&language=ko&region=KR';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  } else {
+    onMapsLoaded();
+  }
+  
+  window._travelMapCfg = {
+    hotels: h.filter(function(x){ return !x.cancelled; }),
+    stops: s.filter(function(x){ return !x.cancelled; }), title: title, subtitle: subtitle,
+    center: {lat: cx, lng: cy}, zoom: zoom, mapId: mapId
+  };
+}
+
+function avg(arr) {
+  if (!arr.length) return 0;
+  return arr.reduce(function(a,b){return a+b;}, 0) / arr.length;
+}
+
+function onMapsLoaded() {
+  var cfg = window._travelMapCfg;
+  var zoom = cfg.zoom || 10;
+  gAllLines = []; gRtLines = []; gMarkers = []; gActiveNode = null;
+  
+  // Build merged sort order for sequential labels (match legend)
+  var ml = [];
+  cfg.hotels.forEach(function(h, i){ ml.push({h:true, ix:i, d:h.date, n:h.name, lat:h.lat, lng:h.lng, c:h.color}); });
+  cfg.stops.forEach(function(s, i){ ml.push({h:false, ix:i, d:s.date||s.emoji, n:s.name, lat:s.lat, lng:s.lng, c:s.color, e:s.emoji||'📍'}); });
+  ml.sort(function(a, b){ return parseDayNumber(a.d) - parseDayNumber(b.d); });
+  
+  gMap = new google.maps.Map(document.getElementById('travelMap'), {
+    center: cfg.center, zoom: cfg.zoom,
+    mapId: cfg.mapId,
+    mapTypeControl: true, streetViewControl: false
+  });
+  gIw = new google.maps.InfoWindow();
+  
+  // Unified marker creation from merged list (same-address clustering)
+  var usedCoords = [];
+  ml.forEach(function(x, seq){
+    var label = (seq + 1) + '';
+    var lat = x.lat, lng = x.lng;
+    // Cluster same-location markers with small diagonal offset
+    for (var k = 0; k < usedCoords.length; k++) {
+      if (Math.abs(usedCoords[k].lat - lat) < 0.001 && Math.abs(usedCoords[k].lng - lng) < 0.001) {
+        lat += 0.00035 * (k + 1);
+        lng += 0.00035 * (k + 1);
+      }
+    }
+    usedCoords.push({lat: lat, lng: lng});
+    
+    if (x.h) {
+      var h = cfg.hotels[x.ix];
+      if (h.cancelled) return;
+      var m = mk(lat, lng, h.color, h.cancelled ? '✕' : label, h.cancelled ? 0.5 : 1);
+      gMarkers[seq] = {lat: x.lat, lng: x.lng};
+      m.addListener('click', function(){
+        gIw.setContent('<b>🏨 ' + h.name + '</b><br>📅 ' + h.date + (h.note ? '<br><span style="color:'+h.color+'">'+h.note+'</span>' : ''));
+        gIw.open({map:gMap, anchor:m});
+      });
+    } else {
+      var p = cfg.stops[x.ix];
+      var m2 = mk(lat, lng, p.color, label, 1);
+      gMarkers[seq] = {lat: x.lat, lng: x.lng};
+      m2.addListener('click', function(){
+        gIw.setContent('<b>' + (p.emoji||'📍') + ' ' + label + '. ' + p.name + '</b>' + (p.date ? '<br>' + p.date : ''));
+        gIw.open({map:gMap, anchor:m2});
+      });
+    }
+  });
+  
+  // Build continuous route through merged order (one path, no gaps)
+  for (var i = 0; i < ml.length - 1; i++) {
+    var from = ml[i], to = ml[i+1];
+    var dist = computeDist(from.lat, from.lng, to.lat, to.lng);
+    var l = new google.maps.Polyline({
+      path: [{lat:from.lat,lng:from.lng},{lat:to.lat,lng:to.lng}],
+      map: gMap, strokeColor: from.c, strokeWeight: 4, strokeOpacity: 0.65, geodesic: true,
+      icons: [{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:2.5,strokeColor:from.c,strokeWeight:2.5},repeat:'150px'}]
+    });
+    l._info = '🚗 ' + dist + ' · 직선거리<br><small>' + from.n + ' → ' + to.n + '</small>';
+    l._idx = i;
+    l.addListener('click', function(ev){ gIw.setContent(this._info); gIw.setPosition(ev.latLng); gIw.open(gMap); });
+    gAllLines.push(l);
+  }
+  
+  gRtLines = [];
+  
+  // (zoom set by renderMapInContainer)
+  
+  
+  // Legend
+  buildDynamicLegend(cfg);
+}
+
+function computeDist(lat1, lng1, lat2, lng2) {
+  var R = 6371;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLng = (lng2 - lng1) * Math.PI / 180;
+  var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2) * Math.sin(dLng/2);
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return (R * c).toFixed(1) + ' km';
+}
+
+function mk(lat, lng, color, label, opacity) {
+  var d = document.createElement('div');
+  d.style.cssText = 'background:white;border:3px solid '+color+';border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:'+color+';box-shadow:0 2px 8px rgba(0,0,0,0.3);opacity:'+(opacity||1);
+  d.textContent = label;
+  return new google.maps.marker.AdvancedMarkerElement({map:gMap, position:{lat:lat, lng:lng}, content:d});
+}
+
+function parseDayNumber(dateStr) {
+  if (!dateStr) return 999;
+  var s = String(dateStr);
+  var m = s.match(/(\d+)\s*일차/); if (m) return parseInt(m[1]);
+  m = s.match(/Day\s*(\d+)/i); if (m) return parseInt(m[1]);
+  m = s.match(/^(\d+)\s*일/); if (m) return parseInt(m[1]);
+  m = s.match(/^(\d+)/); if (m) return parseInt(m[1]);
+  return 999;
+}
+
+function buildDynamicLegend(cfg) {
+  
+  // Merge hotels + stops, sort by day number
+  var merged = [];
+  cfg.hotels.forEach(function(h, i){ merged.push({name:h.name,color:h.color,date:h.date,isHotel:true,emoji:''}); });
+  cfg.stops.forEach(function(s, i){ merged.push({name:s.name,color:s.color,date:s.date||s.emoji,isHotel:false,emoji:s.emoji||'📍'}); });
+  merged.sort(function(a, b){ return parseDayNumber(a.date) - parseDayNumber(b.date); });
+  
+  // Build legend items with sequential numbers + simple route indices
+  var items = [];
+  var totalItems = merged.length;
+  merged.forEach(function(x, seq){
+    var rts = [];
+    if (seq > 0) rts.push(seq - 1);          // incoming segment
+    if (seq < totalItems - 1) rts.push(seq);  // outgoing segment
+    items.push({
+      no: (seq + 1) + '',
+      name: x.name,
+      color: x.color,
+      date: x.date,
+      emoji: x.emoji,
+      isHotel: x.isHotel,
+      routes: rts
+    });
+  });
+  
+  var isMobile = window.innerWidth < 768;
+  
+  var html = '<div class="legend-wrap" style="background:rgba(255,255,255,0.95);border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,0.18);font-size:13px;line-height:1.8;min-width:200px;max-width:320px;overflow:hidden;transition:all 0.3s">';
+  html += '<div class="legend-header" style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;background:#f8f8f8;border-bottom:1px solid #eee;user-select:none"><div><b>💒 '+cfg.title+'</b><div style="font-size:11px;color:#888">'+cfg.subtitle+'</div></div><span class="legend-arrow" style="font-size:16px;transition:transform 0.3s">'+(isMobile?'\u25b6':'\u25bc')+'</span></div>';
+  html += '<div class="legend-body" style="padding:0 14px 12px;display:'+(isMobile?'none':'block')+'">';
+  html += '<button class="reset-btn" style="background:#eee;border:none;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;margin-bottom:6px">🔄 전체보기</button>';
+  html += '<b>🏨 클릭시 경로 하이라이트</b><br>';
+  
+  // Group items by day for collapsible sections
+  var dayGroups = {};
+  items.forEach(function(it){
+    var dn = parseDayNumber(it.date);
+    var dayKey = dn ? dn + '일차' : '기타';
+    if (!dayGroups[dayKey]) dayGroups[dayKey] = {day: dayKey, items: []};
+    dayGroups[dayKey].items.push(it);
+  });
+  var dayKeys = Object.keys(dayGroups).sort(function(a,b){
+    var na = parseInt(a) || 0, nb = parseInt(b) || 0;
+    if (na === 0 && a !== '기타') na = 999;
+    if (nb === 0 && b !== '기타') nb = 999;
+    return na - nb;
+  });
+  
+  dayKeys.forEach(function(day){
+    var group = dayGroups[day];
+    var count = group.items.length;
+    html += '<div class="day-group">';
+    html += '<div class="day-header" style="cursor:pointer;padding:5px 0;border-bottom:1px solid #eee;margin-bottom:2px;display:flex;justify-content:space-between;align-items:center;user-select:none;font-weight:700;font-size:12px;color:#555">';
+    html += '<span>📅 '+day+' ('+count+'곳)</span>';
+    html += '<span class="day-arrow" style="font-size:11px">▼</span>';
+    html += '</div>';
+    html += '<div class="day-body" style="padding-left:0">';
+    
+    group.items.forEach(function(it){
+      var icon = it.isHotel ? '🏨 ' : (it.emoji + ' ');
+      html += '<div class="legend-item" style="cursor:pointer;padding:2px 5px;border-radius:4px;transition:background 0.2s" data-rids="'+it.routes.join(',')+'" data-seq="'+it.no+'">';
+      html += '<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:'+it.color+'"></span>';
+      html += '<b>'+icon+it.no+'. '+it.name+'</b> '+it.date+'</div>';
+    });
+    
+    html += '</div></div>';
+  });
+  
+  html += '</div></div>';
+  
+  var div = document.createElement('div');
+  div.className = 'legend-container';
+  div.innerHTML = html;
+  div.style.marginTop = '10px';
+  
+  // 접기/펴기 (헤더 클릭)
+  div.querySelector('.legend-header').addEventListener('click', function(){
+    var body = div.querySelector('.legend-body');
+    var arrow = div.querySelector('.legend-arrow');
+    if (body.style.display === 'none') {
+      body.style.display = 'block';
+      arrow.textContent = '\u25bc';
+    } else {
+      body.style.display = 'none';
+      arrow.textContent = '\u25b6';
+    }
+  });
+  
+  // 전체보기 버튼
+  div.querySelector('.reset-btn').addEventListener('click', function(e){
+    e.stopPropagation();
+    resetMapFilter();
+  });
+  
+  // 일자별 접기/펴기
+  div.querySelectorAll('.day-header').forEach(function(dh){
+    dh.addEventListener('click', function(e){
+      e.stopPropagation();
+      var body = dh.nextElementSibling;
+      var arrow = dh.querySelector('.day-arrow');
+      if (body.style.display === 'none') {
+        body.style.display = 'block';
+        arrow.textContent = '▼';
+      } else {
+        body.style.display = 'none';
+        arrow.textContent = '▶';
+      }
+    });
+  });
+  
+  // 범례 아이템 클릭 필터 (이벤트 위임 - onclick 제거, CSP 대응)
+  div.querySelectorAll('.legend-item').forEach(function(el){
+    el.addEventListener('click', function(e){
+      e.stopPropagation();
+      var rids = el.getAttribute('data-rids').split(',').map(function(x){
+        var v = x.trim();
+        if (!v) return null;
+        return v.slice(0,2) === 'rt' ? v : parseInt(v);
+      }).filter(function(x){ return x !== null && x !== '' && (typeof x === 'string' || !isNaN(x)); });
+      if (rids.length === 0) return;
+      
+      if (gActiveNode === el) { resetMapFilter(); return; }
+      var prev = document.querySelector('.legend-item.active');
+      if (prev) { prev.classList.remove('active'); prev.style.background = ''; }
+      gActiveNode = el;
+      el.classList.add('active');
+      el.style.background = '#cce5ff';
+      
+      gAllLines.forEach(function(l){
+        var ok = false;
+        rids.forEach(function(rid){ if (l._idx === rid) ok = true; });
+        l.setOptions({strokeOpacity: ok ? 0.85 : 0.10});
+      });
+      
+      // 지도 해당 위치로 이동
+      var seqIdx = parseInt(el.getAttribute('data-seq')) - 1;
+      if (gMarkers[seqIdx] && gMap) {
+        gMap.panTo({lat: gMarkers[seqIdx].lat, lng: gMarkers[seqIdx].lng});
+        gMap.setZoom(14);
+      }
+    });
+  });
+  
+  gMap.controls[google.maps.ControlPosition.RIGHT_TOP].push(div);
+}
+
+function filterByNode(el, rids) {
+  if (gActiveNode === el) { resetMapFilter(); return; }
+  var prev = document.querySelector('.legend-item.active');
+  if (prev) prev.classList.remove('active');
+  if (prev) prev.style.background = '';
+  gActiveNode = el;
+  el.classList.add('active');
+  el.style.background = '#cce5ff';
+  
+  gAllLines.forEach(function(l){
+    var ok = false;
+    rids.forEach(function(rid){
+      if (typeof rid === 'number' && l._idx === rid) ok = true;
+      if (typeof rid === 'string' && rid.slice(0,2) === 'rt') {
+        var si = parseInt(rid.slice(2));
+        if (gRtLines[si] && l === gRtLines[si]) ok = true;
+      }
+    });
+    var isRt = l._idx !== undefined && gRtLines.indexOf(l) >= 0;
+    l.setOptions({strokeOpacity: ok ? 0.85 : 0.10, strokeWeight: ok ? (isRt?7:5) : (isRt?1.5:1.5)});
+  });
+}
+
+function resetMapFilter() {
+  gActiveNode = null;
+  var prev = document.querySelector('.legend-item.active');
+  if (prev) { prev.classList.remove('active'); prev.style.background = ''; }
+  gAllLines.forEach(function(l){
+    var isRt = gRtLines.indexOf(l) >= 0;
+    l.setOptions({strokeOpacity: isRt ? 0.7 : 0.65, strokeWeight: isRt ? 6 : 4});
+  });
+}
+
+// ═══════════════════════════════════════════
+// AI Parsing (DeepSeek V4 Pro via Cloudflare Worker)
+// ═══════════════════════════════════════════
+var aiParsedData = null;
+
+async function aiParseFromText(rawText) {
+  if (!rawText) return;
+  
+  // 맵 만들기 버튼 비활성화
+  var buildBtn = document.getElementById('buildBtn');
+  buildBtn.disabled = true;
+  buildBtn.textContent = '⏳ AI 분석 중...';
+  
+  var combinedText = rawText;
+  // Also include textarea content
+  var ta = document.getElementById('textInput');
+  if (ta && ta.value.trim()) combinedText = ta.value.trim() + '\n\n' + rawText;
+  
+  var statusEl = document.getElementById('aiStatus');
+  var resultEl = document.getElementById('aiResult');
+  
+    statusEl.innerHTML = '<div class="status ok">🤖 AI가 데이터를 분석하고 있습니다 (경비 항목은 자동 제외)...</div>';
+  resultEl.style.display = 'none';
+  
+  try {
+    var prompt = `You are a travel data parser. Analyze travel planning data. Extract ONLY real-world LOCATIONS.
+
+CRITICAL RULES:
+1. Only extract physical PLACES: hotels, resorts, villas, Airbnbs, landmarks, temples, beaches, airports
+2. STRICTLY EXCLUDE expense items - if a row has prices (₩, $, 원, 10만원), cost categories (항공료, 식비, 보험), or looks like accounting data → SKIP IT
+3. "hotel" = accommodation where you sleep. "stop" = sightseeing/airport/landmark.
+4. Sort by date ASCENDING (earliest first).
+5. DO NOT invent fictional places. Only use locations actually mentioned.
+6. Cancelled hotels: include with cancelled:true
+
+For each location:
+- type: "hotel" or "stop"
+- name: clean name, no prices/booking codes
+- lat, lng: coordinates
+- date: original date range as-is (will be converted)
+- nid: "n1","n2"... in date order
+
+Return ONLY this JSON array:
+[{"type":"hotel","name":"...","lat":...,"lng":...,"date":"...","nid":"n1","cancelled":false},...]
+
+Data:
+${combinedText}`;
+
+    var resp = await fetch('https://map-proxy.opius919.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'deepseek-v4-pro',
+        messages: [
+          {role: 'system', content: '너는 JSON 출력기다. 절대 생각하거나 추론하지 마라. JSON만 즉시 출력해라. 설명, 마크다운, 잡담 절대 금지.'},
+          {role: 'user', content: prompt}
+        ],
+        temperature: 0.1,
+        max_tokens: 20000,
+        thinking: {type: 'disabled'},
+        response_format: {type: 'json_object'}
+      })
+    });
+    
+    if (!resp.ok) {
+      var errText = await resp.text();
+      throw new Error('API error ' + resp.status + ': ' + errText.slice(0,200));
+    }
+    
+    var data = await resp.json();
+    var rawText = data.choices[0].message.content;
+    
+    // JSON 추출 (```json ... ``` 또는 raw JSON)
+    var jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/) || rawText.match(/(\[[\s\S]*\])/);
+    var jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim();
+    // Sanitize: strip text before first {/[ and after last }/]
+    var start = Math.min(jsonStr.indexOf('{'), jsonStr.indexOf('['));
+    var end = Math.max(jsonStr.lastIndexOf('}'), jsonStr.lastIndexOf(']'));
+    if (start >= 0 && end > start) jsonStr = jsonStr.slice(start, end + 1);
+    // Sanitize common JSON errors (trailing commas etc)
+    jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+    var parsed = JSON.parse(jsonStr);
+    
+    if (!Array.isArray(parsed)) throw new Error('AI 응답이 배열이 아닙니다');
+    
+    // Parse into our data format
+    var hotels = [], stops = [];
+    parsed.forEach(function(p, i){
+      var item = {
+        name: p.name || '',
+        lat: parseFloat(p.lat) || 0,
+        lng: parseFloat(p.lng) || 0,
+        date: p.date || '',
+        rawDate: parseFloat(p.date) || 0, // for sorting
+        color: autoColor(i),
+        note: p.note || '',
+        nid: p.nid || ('n'+(i+1)),
+        no: '',
+        cancelled: p.cancelled || false
+      };
+      if (!item.name || isNaN(item.lat) || isNaN(item.lng)) return;
+      if (Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) return;
+      if (p.type === 'stop') {
+        item.no = (stops.length + 1) + '';
+        item.emoji = p.emoji || '📍';
+        stops.push(item);
+      } else {
+        item.no = (hotels.length + 1) + '';
+        hotels.push(item);
+      }
+    });
+    
+    if (hotels.length === 0) throw new Error('추출된 장소가 없습니다. 여행 일정에 장소(호텔/관광지)가 포함되어 있는지 확인해주세요.');
+    
+    // 🔄 엑셀 시리얼 날짜 → 읽을 수 있는 날짜로 변환
+    hotels.forEach(function(h){
+      h.date = convertExcelDate(h.date);
+    });
+    stops.forEach(function(s){
+      s.date = convertExcelDate(s.date);
+    });
+    
+    // 📅 날짜 오름차순 정렬 (여행 순서대로)
+    hotels.sort(function(a, b){
+      return (a.rawDate || 999999) - (b.rawDate || 999999);
+    });
+    // 순서 재지정
+    hotels.forEach(function(h, i){ h.no = (i + 1) + ''; });
+    
+    parsedData = { hotels: hotels, stops: stops };
+    document.getElementById('buildBtn').disabled = false;
+    document.getElementById('buildBtn').textContent = '🗺️ 맵 만들기';
+    if (document.getElementById('fileInfo')) document.getElementById('fileInfo').textContent += ' ✅ 완료';
+    
+    statusEl.innerHTML = '<div class="status ok">✅ 분석 완료! (경비 항목 자동 제외됨)</div>';
+    document.getElementById('aiSummary').innerHTML = 
+      '🏨 숙소 ' + hotels.length + '개: ' + hotels.map(function(h){return h.name;}).join(', ') + '<br>' +
+      '📍 경유지 ' + stops.length + '개: ' + stops.map(function(s){return s.name;}).join(', ');
+    resultEl.style.display = 'block';
+    
+  } catch(e) {
+    statusEl.innerHTML = '<div class="status err">❌ 분석 실패: ' + e.message + '</div>';
+    console.error('AI parse error:', e);
+    var bb = document.getElementById('buildBtn');
+    bb.disabled = true;
+    bb.textContent = '🗺️ 맵 만들기';
+  }
+  
+}
+
+// ═══════════════════════════════════════════
+// AI 맞춤 여행 추천
+// ═══════════════════════════════════════════
+async function aiRecommend() {
+  var dest = document.getElementById('aiDestination').value.trim();
+  if (!dest) { alert('여행지를 입력해주세요!'); return; }
+  
+  var duration = document.getElementById('aiDuration').value || '3박 4일';
+  var companion = document.getElementById('aiCompanion').value || '연인/부부';
+  var theme = document.getElementById('aiTheme').value || '관광';
+  var budget = document.getElementById('aiBudget').value || '스탠다드';
+  
+  var btn = document.getElementById('aiRecommendBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ AI가 일정을 생성 중입니다...';
+  showStatus('', '⏳ AI가 ' + dest + ' 여행 일정을 생성 중입니다...');
+  document.getElementById('aiBriefing').style.display = 'none';
+  document.getElementById('aiBriefingText').innerHTML = '';
+  
+  var prompt = `당신은 여행 일정 전문 플래너입니다. 사용자의 선호도에 맞춰 구체적인 ${dest} 여행 일정을 만들어주세요.
+
+[사용자 정보]
+- 여행지: ${dest}
+- 일정: ${duration}
+- 동행자: ${companion}
+- 여행 테마: ${theme}
+- 예산: ${budget}
+
+[지시사항]
+1. 실제 존재하는 장소만 추천하세요. 정확한 위도/경도 좌표를 포함하세요.
+2. 호텔은 예산에 맞게 선택하세요.
+3. 액티비티는 여행 테마에 맞게 구성하세요.
+4. 날짜 순서로 정렬하세요 (첫날부터).
+5. 🚫 동선 낭비 금지: 같은 지역/건물의 장소는 반드시 연속된 날짜에 배치하세요. A지역→B지역→다시 A지역 같은 비효율 이동은 절대 금지. 지도에 그렸을 때 최단거리로 이어지도록 구성하세요.
+6. 하루에 관광지/맛집 1~2곳을 포함하세요.
+7. 호텔 이름에 지역/구 정보를 포함하세요 (예: "OO호텔 (몽마르트)", "△△리조트-7구"). 같은 체인 호텔도 지역으로 구분하세요.
+8. type="hotel"은 숙소, type="stop"은 관광지/맛집입니다.
+
+[출력 형식]
+반드시 아래 JSON 형식으로만 응답하세요. 마크다운 코드블록 없이 순수 JSON만 출력하세요.
+{
+  "briefing": "이 일정을 추천한 이유와 여행 팁을 한국어로 3~5문장으로 설명해주세요. 여행 테마, 예산, 동행자를 고려한 맞춤형 설명이어야 합니다.",
+  "itinerary": [
+    {"type":"hotel","name":"호텔 이름 (지역)","lat":48.8566,"lng":2.3522,"date":"1일차","nid":"n1"},
+    {"type":"stop","name":"관광지명","lat":48.8566,"lng":2.3522,"date":"1일차","emoji":"🏛️","nid":"n2"}
+  ]
+}`;
+  
+  try {
+    var resp = await fetch('https://map-proxy.opius919.workers.dev', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        model: 'deepseek-v4-pro',
+        messages: [
+          {role: 'system', content: '너는 JSON 출력기다. 절대 생각하거나 추론하지 마라. JSON만 즉시 출력해라. 설명, 마크다운, 잡담 절대 금지.'},
+          {role: 'user', content: prompt}
+        ],
+        temperature: 0.1,
+        max_tokens: 20000,
+        thinking: {type: 'disabled'},
+        response_format: {type: 'json_object'}
+      })
+    });
+    
+    if (!resp.ok) {
+      var errText = await resp.text();
+      var errMsg = errText;
+      try { var e = JSON.parse(errText); errMsg = e.error?.message || errText; } catch(_) {}
+      throw new Error('API error ' + resp.status + ': ' + errMsg.slice(0,200));
+    }
+    
+    var data = await resp.json();
+    var rawText = data.choices[0].message.content;
+    
+    // JSON 추출 (```json ... ``` 또는 raw JSON)
+    var jsonMatch = rawText.match(/\`\`\`(?:json)?\s*([\s\S]*?)\`\`\`/) || rawText.match(/(\{[\s\S]*\})/);
+    var jsonStr = jsonMatch ? jsonMatch[1].trim() : rawText.trim();
+    // Sanitize: strip text before first {/[ and after last }/]
+    var start = Math.min(jsonStr.indexOf('{'), jsonStr.indexOf('['));
+    var end = Math.max(jsonStr.lastIndexOf('}'), jsonStr.lastIndexOf(']'));
+    if (start >= 0 && end > start) jsonStr = jsonStr.slice(start, end + 1);
+    // Sanitize common JSON errors (trailing commas etc)
+    jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+    var result = JSON.parse(jsonStr);
+    
+    // briefing + itinerary 형식 처리
+    var briefing = result.briefing || '';
+    var parsed = result.itinerary || result; // 하위 호환: 배열이 직접 올 경우
+    
+    if (!Array.isArray(parsed)) throw new Error('일정 데이터가 배열이 아닙니다');
+    
+    var COLORS = ['#2196F3','#4CAF50','#FF9800','#E91E63','#9C27B0','#00BCD4','#795548','#607D8B'];
+    var hotels = [], stops = [];
+    parsed.forEach(function(p, i){
+      var item = {
+        name: p.name || '',
+        lat: parseFloat(p.lat) || 0,
+        lng: parseFloat(p.lng) || 0,
+        date: p.date || '',
+        rawDate: i + 1,
+        color: COLORS[i % COLORS.length],
+        note: p.note || '',
+        nid: p.nid || ('n'+(i+1)),
+        no: '',
+        cancelled: false
+      };
+      if (!item.name || isNaN(item.lat) || isNaN(item.lng)) return;
+      if (Math.abs(item.lat) > 90 || Math.abs(item.lng) > 180) return;
+      if (p.type === 'stop') {
+        item.no = (stops.length + 1) + '';
+        item.emoji = p.emoji || '📍';
+        stops.push(item);
+      } else {
+        item.no = (hotels.length + 1) + '';
+        hotels.push(item);
+      }
+    });
+    
+    if (hotels.length === 0) throw new Error('추출된 장소가 없습니다');
+    
+    parsedData = { hotels: hotels, stops: stops };
+    
+    // 브리핑 표시
+    if (briefing) {
+      document.getElementById('aiBriefingText').innerHTML = briefing.replace(/\n/g, '<br>');
+      document.getElementById('aiBriefing').style.display = 'block';
+    }
+    
+    document.getElementById('buildBtn').disabled = false;
+    document.getElementById('buildBtn').textContent = '🗺️ 맵 만들기';
+    
+    showStatus('ok', '✅ AI 추천 완료! ' + dest + ' ' + duration + ' 일정 - 브리핑을 확인 후 맵을 만들어보세요');
+    document.getElementById('aiSummary').innerHTML = 
+      '🏨 숙소 ' + hotels.length + '개: ' + hotels.map(function(h){return h.name;}).join(', ') + '<br>' +
+      '📍 경유지 ' + stops.length + '개: ' + stops.map(function(s){return s.name;}).join(', ');
+    document.getElementById('aiResult').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = '✨ AI 맞춤 일정 추천받기';
+    
+  } catch(e) {
+    showStatus('err', '❌ 추천 실패: ' + e.message);
+    console.error('AI recommend error:', e);
+    btn.disabled = false;
+    btn.textContent = '✨ AI 맞춤 일정 추천받기';
+  }
+}
+function applyAiResult() {
+  if (!parsedData || !parsedData.hotels.length) return;
+  // 제목이 비어있으면 AI 파싱 텍스트 첫 30글자로 채우기
+  var titleEl = document.getElementById('tripTitle');
+  if (!titleEl.value.trim()) {
+    titleEl.value = '여행 동선';
+  }
+  showStatus('ok', '✅ AI 분석 데이터 적용 완료! 숙소 ' + parsedData.hotels.length + '개, 경유지 ' + parsedData.stops.length + '개');
+  document.getElementById('buildBtn').disabled = false;
+  // 바로 맵 생성
+  generateMap();
+}
+
+// ═══════════════════════════════════════════
+// 엑셀 시리얼 날짜 → YYYY-MM-DD 변환
+// ═══════════════════════════════════════════
+function convertExcelDate(dateStr) {
+  if (!dateStr) return '';
+  // 이미 YYYY-MM-DD 형식이면 그대로 반환
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.split(/[ T]/)[0];
+  // "46288.625-46289.5" 같은 시리얼 범위 변환
+  return String(dateStr).replace(/(\d{4,6}\.?\d*)/g, function(m){
+    var serial = parseFloat(m);
+    if (serial < 30000 || serial > 100000) return m;
+    var d = new Date((serial - 25569) * 86400000);
+    return d.getFullYear() + '-' +
+           String(d.getMonth() + 1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  });
+}
+
+// ═══════════════════════════════════════════
+// Download
+// ═══════════════════════════════════════════
+function downloadHTML() {
+  var key = DEFAULT_KEY;
+  var mapId = DEFAULT_MAPID;
+  var title = document.getElementById('tripTitle').value.trim() || '여행 동선';
+  var subtitle = document.getElementById('tripSubtitle').value.trim() || '';
+  var h = parsedData.hotels.filter(function(x){ return !x.cancelled; }),
+      s = parsedData.stops.filter(function(x){ return !x.cancelled; });
+  
+  var allLats = h.map(function(x){return x.lat;}).concat(s.map(function(x){return x.lat;}));
+  var allLngs = h.map(function(x){return x.lng;}).concat(s.map(function(x){return x.lng;}));
+  var cx = avg(allLats), cy = avg(allLngs);
+  var latSpread = Math.max.apply(null,allLats)-Math.min.apply(null,allLats);
+  var lngSpread = Math.max.apply(null,allLngs)-Math.min.apply(null,allLngs);
+  var spread = Math.max(latSpread, lngSpread) * 1.5;
+  var zoom;
+  if (spread <= 0.001) zoom = 16;
+  else if (spread <= 0.005) zoom = 15;
+  else if (spread <= 0.01) zoom = 14;
+  else if (spread <= 0.05) zoom = 13;
+  else if (spread <= 0.1) zoom = 12;
+  else if (spread <= 0.3) zoom = 11;
+  else if (spread <= 0.5) zoom = 10;
+  else if (spread <= 1) zoom = 9;
+  else if (spread <= 2) zoom = 8;
+  else if (spread <= 5) zoom = 7;
+  else zoom = 6;
+  cx = (Math.min.apply(null,allLats) + Math.max.apply(null,allLats)) / 2;
+  cy = (Math.min.apply(null,allLngs) + Math.max.apply(null,allLngs)) / 2;
+  
+  // Build standalone HTML
+  var hotelsJSON = JSON.stringify(h.map(function(x,i){
+    return {no:(i+1)+'',name:x.name,lat:x.lat,lng:x.lng,date:x.date,color:x.color,note:x.note,nid:x.nid,cancelled:x.cancelled};
+  }));
+  var stopsJSON = JSON.stringify(s);
+  
+  var html = '<!DOCTYPE html>\n<html lang="ko">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>'+title+'</title>\n';
+  html += '<style>\n*{margin:0;padding:0;box-sizing:border-box}\nhtml,body{height:100%}\nbody{font-family:-apple-system,sans-serif}\n#map{height:100vh;width:100%}\n.legend-wrap{background:rgba(255,255,255,0.95);border-radius:14px;box-shadow:0 2px 14px rgba(0,0,0,0.18);font-size:13px;line-height:1.8;min-width:240px;max-width:340px;overflow:hidden;margin-top:10px}\n.legend-header{padding:12px 14px;display:flex;justify-content:space-between;align-items:center}\n.legend-body{padding:0 14px 12px}\n.legend-body .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}\n.legend-item{cursor:pointer;padding:2px 5px;border-radius:4px}\n.legend-item:hover{background:#e8e8e8}\n.reset-btn{background:#eee;border:none;font-size:11px;padding:3px 10px;border-radius:4px;cursor:pointer;margin-bottom:6px}\n</style>\n</head>\n<body>\n<div id="map"></div>\n<script>\n';
+  html += 'var hotels='+hotelsJSON+';\n';
+  html += 'var stops='+stopsJSON+';\n';
+  html += 'var title="'+title+'";\n';
+  html += 'var subtitle="'+subtitle+'";\n';
+  
+  // Embed simplified engine
+  html += [
+    'var gMap,gIw,gAllLines=[],gRtLines=[],gActiveNode=null;',
+    'function mk(lat,lng,color,label,opacity){var d=document.createElement("div");d.style.cssText="background:white;border:3px solid "+color+";border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:"+color+";box-shadow:0 2px 8px rgba(0,0,0,0.3);opacity:"+(opacity||1);d.textContent=label;return new google.maps.marker.AdvancedMarkerElement({map:gMap,position:{lat:lat,lng:lng},content:d});}',
+    'function cd(l1,ln1,l2,ln2){var R=6371,dL=(l2-l1)*Math.PI/180,dLn=(ln2-ln1)*Math.PI/180,a=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dLn/2)*Math.sin(dLn/2);return(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))).toFixed(1)+" km";}',
+    'function initMap(){',
+    '  gMap=new google.maps.Map(document.getElementById("map"),{center:{lat:'+cx+',lng:'+cy+'},zoom:'+zoom+',mapTypeControl:true,streetViewControl:false});'+
+    '  '+fbCode+';',
+    '  gIw=new google.maps.InfoWindow();',
+    '  hotels.forEach(function(h,i){var m=mk(h.lat,h.lng,h.color,(i+1)+"",1);m.addListener("click",function(){gIw.setContent("<b>🏨 "+h.name+"</b><br>📅 "+h.date);gIw.open({map:gMap,anchor:m});});});',
+    '  stops.forEach(function(p,i){var m=mk(p.lat,p.lng,p.color,(i+1)+"",1);m.addListener("click",function(){gIw.setContent("<b>"+(p.emoji||"📍")+" "+(i+1)+". "+p.name+"</b>");gIw.open({map:gMap,anchor:m});});});',
+    '  for(var i=0;i<hotels.length-1;i++){var d=cd(hotels[i].lat,hotels[i].lng,hotels[i+1].lat,hotels[i+1].lng);var l=new google.maps.Polyline({path:[{lat:hotels[i].lat,lng:hotels[i].lng},{lat:hotels[i+1].lat,lng:hotels[i+1].lng}],map:gMap,strokeColor:hotels[i].color,strokeWeight:4,strokeOpacity:0.65,geodesic:true,icons:[{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:2.5,strokeColor:hotels[i].color,strokeWeight:2.5},repeat:"150px"}]});l._info="🚗 "+d+" · 직선거리<br><small>"+hotels[i].name+" → "+hotels[i+1].name+"</small>";l._idx=i;l.addListener("click",function(ev){gIw.setContent(this._info);gIw.setPosition(ev.latLng);gIw.open(gMap);});gAllLines.push(l);}',
+    '  if(stops.length>0){var pts=[{lat:hotels[0].lat,lng:hotels[0].lng}];stops.forEach(function(p){pts.push({lat:p.lat,lng:p.lng});});pts.push({lat:hotels[1].lat,lng:hotels[1].lng});for(var j=0;j<pts.length-1;j++){var d2=cd(pts[j].lat,pts[j].lng,pts[j+1].lat,pts[j+1].lng);var rl=new google.maps.Polyline({path:[pts[j],pts[j+1]],map:gMap,strokeColor:"#ff6b6b",strokeWeight:6,strokeOpacity:0.7,geodesic:true,icons:[{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:3,strokeColor:"#ff6b6b",strokeWeight:3},repeat:"150px"}]});rl._info="🚗 "+d2+" · 직선거리";rl._idx=j;rl.addListener("click",function(ev){gIw.setContent(this._info);gIw.setPosition(ev.latLng);gIw.open(gMap);});gRtLines.push(rl);}gRtLines.forEach(function(rl){gAllLines.push(rl);});}',
+    '  document.querySelectorAll(".legend-item").forEach(function(el){el.addEventListener("click",function(){var rids=el.getAttribute("data-rids").split(",").map(function(x){var v=x.trim();return v.slice(0,2)==="rt"?v:parseInt(v);}).filter(function(x){return x!==""&&!isNaN(x)||typeof x==="string";});if(gActiveNode===el){resetMapFilter();return;}var p=document.querySelector(".legend-item.active");if(p)p.classList.remove("active");gActiveNode=el;el.classList.add("active");gAllLines.forEach(function(l){var ok=false;rids.forEach(function(rid){if(typeof rid==="number"&&l._idx===rid)ok=true;if(typeof rid==="string"&&rid.slice(0,2)==="rt"){var si=parseInt(rid.slice(2));if(gRtLines[si]&&l===gRtLines[si])ok=true;}});l.setOptions({strokeOpacity:ok?0.85:0.10});});});});',
+    '  document.querySelector(".reset-btn").addEventListener("click",resetMapFilter);',
+    '}',
+    'function resetMapFilter(){gActiveNode=null;var p=document.querySelector(".legend-item.active");if(p)p.classList.remove("active");gAllLines.forEach(function(l){l.setOptions({strokeOpacity:0.65});});}',
+    '<\/script>',
+    '<script async defer src="https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=marker,geometry&callback=initMap&language=ko&region=KR"><\/script>',
+    '</body>\n</html>'
+  ].join('\n');
+  
+  // Legend HTML
+  var legendItems = '';
+  hotels.forEach(function(h,i){
+    var rid = (i < hotels.length-1 ? i : '');
+    legendItems += '<div class="legend-item" data-rids="'+rid+'"><span class="dot" style="background:'+h.color+'"></span><b>'+(i+1)+'. '+h.name+'</b> '+h.date+'</div>\n';
+  });
+  stops.forEach(function(p,i){
+    legendItems += '<div class="legend-item" data-rids="rt'+i+'"><span class="dot" style="background:'+p.color+'"></span><b>'+(i+1)+'. '+p.name+'</b> '+(p.emoji||'')+'</div>\n';
+  });
+  
+  html = html.replace('</div>\n<div id="map"></div>', '</div>\n<div class="legend-wrap"><div class="legend-header"><div><b>'+title+'</b><div style="font-size:11px;color:#888">'+subtitle+'</div></div></div><div class="legend-body"><div class="reset-btn">🔄 전체보기</div>'+legendItems+'</div></div>\n<div id="map"></div>');
+  
+  var blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'travel-map.html'; a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
 </body>
 </html>
